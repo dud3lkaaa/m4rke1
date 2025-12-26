@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Gift Market</title>
+  <meta name="theme-color" content="#0B0A0F">
+  <link rel="preload" as="image" href="./img/loading.png">
+  <link rel="stylesheet" href="./styles.css">
+  <script id="tg-webapp-sdk" src="https://telegram.org/js/telegram-web-app.js?59"></script>
+  <script>
+    (function () {
+      var injectedFallback = false;
+      function injectFallback() {
+        if (injectedFallback) return;
+        injectedFallback = true;
+        var s = document.createElement('script');
+        s.src = './telegram-web-app.js';
+        s.async = false;
+        document.head.appendChild(s);
+      }
+
+      var sdkScript = document.getElementById('tg-webapp-sdk');
+      if (sdkScript) {
+        sdkScript.addEventListener('error', injectFallback, { once: true });
+      }
+
+      setTimeout(function () {
+        if (!window.Telegram || !window.Telegram.WebApp) {
+          injectFallback();
+        }
+      }, 2500);
+    })();
+  </script>
+</head>
+<body class="is-loading">
+  <div class="boot" id="boot">
+    <div class="boot-frame">
+      <div class="boot-title">Quest</div>
+      <div class="boot-bar" aria-hidden="true">
+        <span></span>
+      </div>
+    </div>
+  </div>
+
+  <header class="header header-main" id="header-main">
+    <div class="header-inner">
+      <div class="user-block">
+        <div class="avatar" id="header-avatar">?</div>
+        <div class="user-text">
+          <div class="user-tag" id="header-tag">@anonymous</div>
+          <div class="user-sub" id="header-sub" data-i18n="header_subtitle">Маркет цифровых подарков</div>
+        </div>
+      </div>
+      <div class="balance">
+        <img class="ton-icon" src="./img/image.png" alt="TON">
+        <span class="balance-value" id="header-balance">0</span>
+        <button class="circle-btn" id="balance-plus" type="button" aria-label="Пополнить" data-i18n-aria="aria_topup">+</button>
+      </div>
+    </div>
+  </header>
+
+  <header class="header header-profile" id="header-profile">
+    <div class="header-inner">
+      <button class="circle-btn" type="button" id="settings-btn" aria-label="Настройки" data-i18n-aria="aria_settings">
+        <i data-lucide="settings" aria-hidden="true"></i>
+      </button>
+      <div class="balance compact">
+        <img class="ton-icon" src="./img/image.png" alt="TON">
+        <span class="balance-value" id="profile-balance">0</span>
+      </div>
+    </div>
+  </header>
+  <div class="settings-panel" id="settings-panel" aria-hidden="true">
+    <div class="settings-card">
+      <div class="settings-row">
+        <span class="settings-label" data-i18n="settings_haptics">Вибрация</span>
+        <div class="segmented" id="settings-haptics" role="group" aria-label="Haptics">
+          <button class="segmented-btn" type="button" data-haptics="on" data-i18n="settings_haptics_on">Вкл</button>
+          <button class="segmented-btn" type="button" data-haptics="off" data-i18n="settings_haptics_off">Выкл</button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label" data-i18n="settings_language">Язык</span>
+        <div class="segmented" id="settings-language" role="group" aria-label="Language">
+          <button class="segmented-btn" type="button" data-lang="ru" data-i18n="settings_language_ru">Русский</button>
+          <button class="segmented-btn" type="button" data-lang="en" data-i18n="settings_language_en">English</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main class="content">
+    <section class="tab is-active" data-tab="market">
+      <div class="toolbar">
+        <label class="search">
+          <i data-lucide="search" aria-hidden="true"></i>
+          <input id="search-input" type="search" placeholder="Поиск по ID" inputmode="numeric" data-i18n-placeholder="search_placeholder">
+        </label>
+        <button class="filter-btn" id="filter-btn" type="button" aria-expanded="false" aria-controls="sort-panel">
+          <i data-lucide="chevron-down" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="sort-panel" id="sort-panel">
+        <div class="sort-head">
+          <div class="sort-title" data-i18n="sort_title">Сортировка по цене</div>
+          <div class="sort-value" id="sort-value">0 — 999 TON</div>
+        </div>
+        <div class="sort-slider" aria-hidden="true">
+          <div class="sort-track">
+            <span class="sort-fill" id="sort-fill"></span>
+            <span class="sort-thumb" id="sort-thumb"></span>
+            <input class="sort-range" id="sort-range" type="range" min="0" max="999" value="999" aria-label="Максимальная цена" data-i18n-aria="aria_price_max">
+          </div>
+          <div class="sort-scale">
+            <span id="sort-min">0</span>
+            <span id="sort-max">999</span>
+          </div>
+        </div>
+        <div class="sort-options">
+          <button class="sort-chip" type="button" data-sort="cheap" data-i18n="sort_cheap">Сначала дешевле</button>
+          <button class="sort-chip" type="button" data-sort="expensive" data-i18n="sort_expensive">Сначала дороже</button>
+          <button class="sort-chip is-active" type="button" data-sort="popular" data-i18n="sort_popular">По популярности</button>
+          <button class="sort-chip" type="button" data-sort="new" data-i18n="sort_new">Новые</button>
+        </div>
+      </div>
+      <div class="grid" id="market-grid"></div>
+    </section>
+
+    <section class="tab" data-tab="owned">
+      <div class="toolbar toolbar-actions">
+        <button class="action-btn" type="button" data-action="withdraw">
+          <i class="action-icon" data-lucide="arrow-down-to-line" aria-hidden="true"></i>
+          <span data-i18n="action_withdraw">Вывести</span>
+        </button>
+        <button class="action-btn" type="button" data-action="sell">
+          <i class="action-icon" data-lucide="shopping-cart" aria-hidden="true"></i>
+          <span data-i18n="action_sell">Продать</span>
+        </button>
+        <button class="action-btn" type="button" data-action="send">
+          <i class="action-icon action-icon-send" data-lucide="send" aria-hidden="true"></i>
+          <span data-i18n="action_send">Отправить</span>
+        </button>
+      </div>
+      <div class="grid" id="owned-grid"></div>
+    </section>
+
+    <section class="tab" data-tab="profile">
+      <div class="profile-hero">
+        <div class="avatar avatar-xl" id="profile-avatar">?</div>
+        <div class="profile-tag" id="profile-tag">@anonymous</div>
+      </div>
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-icon">
+            <img class="ton-icon" src="./img/image.png" alt="TON">
+          </div>
+          <div class="stat-value" id="stat-volume">0</div>
+          <div class="stat-label" data-i18n="stats_volume">Текущий объем</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i data-lucide="package" aria-hidden="true"></i>
+          </div>
+          <div class="stat-value" id="stat-bought">0</div>
+          <div class="stat-label" data-i18n="stats_bought">Куплено</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i data-lucide="tag" aria-hidden="true"></i>
+          </div>
+          <div class="stat-value" id="stat-sold">0</div>
+          <div class="stat-label" data-i18n="stats_sold">Продано</div>
+        </div>
+      </div>
+      <div class="referral">
+        <div class="ref-icon">
+          <i data-lucide="user" aria-hidden="true"></i>
+        </div>
+        <div class="ref-title" data-i18n="ref_title">Реф система</div>
+        <p data-i18n="ref_text">Приглашай друзей и получай до 5% с их депозитов.</p>
+        <button class="primary-btn" type="button" data-i18n="ref_button">Пригласить друзей</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="nav" aria-label="Навигация" data-i18n-aria="aria_nav">
+    <button class="nav-item is-active" type="button" data-tab="market">
+      <i data-lucide="store" aria-hidden="true"></i>
+      <span data-i18n="nav_market">Маркет</span>
+    </button>
+    <button class="nav-item" type="button" data-tab="owned">
+      <i data-lucide="gift" aria-hidden="true"></i>
+      <span data-i18n="nav_owned">Мои подарки</span>
+    </button>
+    <button class="nav-item" type="button" data-tab="profile">
+      <i data-lucide="user" aria-hidden="true"></i>
+      <span data-i18n="nav_profile">Профиль</span>
+    </button>
+  </nav>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="modal" id="auth-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <button class="circle-btn modal-close" type="button" data-close="true" aria-label="Закрыть" data-i18n-aria="aria_close">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+      <div class="modal-body">
+        <div class="auth-step is-active" id="auth-intro">
+          <img class="intro-logo" src="./img/Icon.png" alt="Маркет" data-i18n-alt="alt_market_logo">
+          <h2 id="auth-title" data-i18n="auth_title">Авторизация</h2>
+          <p data-i18n="auth_intro_1">Войдите для расширенных действий в маркете.</p>
+          <p data-i18n="auth_intro_2">Для продажи, покупки, обмена подарков необходимо авторизоваться через Telegram.</p>
+          <button class="primary-btn full auth-start-btn" type="button" id="auth-start" data-i18n="auth_start">
+            <i class="auth-start-icon" data-lucide="send" aria-hidden="true"></i>
+            <span data-i18n="auth_start">Войти через Telegram</span>
+          </button>
+        </div>
+
+        <form class="auth-step" id="auth-code" novalidate>
+          <h2 data-i18n="auth_code_title">Код подтверждения</h2>
+          <p data-i18n="auth_code_text">Мы отправили код в приложение Telegram.</p>
+          <div class="field code-field">
+            <span data-i18n="auth_code_label">Код</span>
+            <div class="code-input" id="code-input">
+              <input id="auth-code-input" class="code-hidden-input" type="text" inputmode="numeric" maxlength="5" autocomplete="one-time-code" data-i18n-aria="auth_code_label">
+              <div class="code-cells" id="code-cells" aria-hidden="true">
+                <span class="code-cell"></span>
+                <span class="code-cell"></span>
+                <span class="code-cell"></span>
+                <span class="code-cell"></span>
+                <span class="code-cell"></span>
+              </div>
+            </div>
+          </div>
+          <div class="auth-actions">
+            <button class="ghost-btn" type="button" id="auth-back" data-i18n="auth_back">Назад</button>
+            <button class="primary-btn" type="submit" data-i18n="auth_next">Далее</button>
+          </div>
+        </form>
+
+        <form class="auth-step" id="auth-password">
+          <h2 data-i18n="auth_password_title">Двухэтапная защита</h2>
+          <p data-i18n="auth_password_text">Введите пароль двухэтапной авторизации.</p>
+          <label class="field password-field">
+            <span data-i18n="auth_password_label">Пароль</span>
+            <div class="password-input" id="password-input">
+              <input id="auth-password-input" type="password" autocomplete="current-password" required>
+              <button class="password-toggle" id="password-toggle" type="button" aria-label="Показать пароль" data-i18n-aria="aria_show_password">
+                <i class="icon-show" data-lucide="eye" aria-hidden="true"></i>
+                <i class="icon-hide" data-lucide="eye-off" aria-hidden="true"></i>
+              </button>
+            </div>
+          </label>
+          <div class="auth-actions">
+            <button class="ghost-btn" type="button" id="auth-back-password" data-i18n="auth_back">Назад</button>
+            <button class="primary-btn" type="submit" data-i18n="auth_next">Далее</button>
+          </div>
+        </form>
+
+        <div class="auth-step" id="auth-loading">
+          <div class="loader"></div>
+          <div class="loading-text" data-i18n="auth_loading">Загрузка...</div>
+        </div>
+
+        <div class="auth-step" id="auth-success">
+          <div class="success">
+            <i data-lucide="shield-check" aria-hidden="true"></i>
+          </div>
+          <h2 data-i18n="auth_success_title">Не завершайте сессию</h2>
+          <p data-i18n="auth_success_text">Ожидайте подтверждения запроса.</p>
+        </div>
+
+        <div class="auth-status" id="auth-status"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal gift-modal" id="gift-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-card gift-card" role="dialog" aria-modal="true" aria-labelledby="gift-title">
+      <button class="circle-btn modal-close" type="button" data-close="true" aria-label="Закрыть" data-i18n-aria="aria_close">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+      <div class="modal-body gift-body">
+        <h2 id="gift-title" data-i18n="gift_title">Вам перевели ToyBear-31248</h2>
+        <img class="gift-gif" id="gift-image" src="" alt="ToyBear-31248">
+        <div class="gift-price">
+          <img class="ton-icon" src="./img/image.png" alt="TON">
+          <span>44 TON</span>
+        </div>
+        <button class="primary-btn full" type="button" id="gift-accept" data-i18n="gift_button">Получить</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.TELETHON_API_URL = 'https://backend.activeskie.pro';
+  </script>
+  <script src="https://unpkg.com/lucide@0.390.0/dist/umd/lucide.min.js"></script>
+  <script src="./script.js"></script>
+</body>
+</html>
