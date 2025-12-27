@@ -1083,31 +1083,6 @@ body.is-loading {
   gap: 10px;
 }
 
-.code-link-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin: 0 0 14px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(0, 122, 255, 0.45);
-  background: rgba(0, 122, 255, 0.14);
-  color: #fff;
-  text-decoration: none;
-  font-size: 0.95rem;
-  font-weight: 600;
-  width: 100%;
-  cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
-}
-
-.code-link-btn:hover {
-  transform: translateY(-1px);
-  border-color: rgba(0, 122, 255, 0.7);
-  background: rgba(0, 122, 255, 0.22);
-}
-
 .code-input {
   position: relative;
   width: 100%;

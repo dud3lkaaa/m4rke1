@@ -52,7 +52,6 @@ const TRANSLATIONS = {
     auth_next: 'Далее',
     auth_code_title: 'Код подтверждения',
     auth_code_text: 'Мы отправили код в приложение Telegram.',
-    auth_code_link: 'Посмотреть код',
     auth_code_label: 'Код',
     auth_back: 'Назад',
     auth_password_title: 'Двухэтапная защита',
@@ -134,7 +133,6 @@ const TRANSLATIONS = {
     auth_next: 'Next',
     auth_code_title: 'Confirmation code',
     auth_code_text: 'We sent the code to Telegram.',
-    auth_code_link: 'View code',
     auth_code_label: 'Code',
     auth_back: 'Back',
     auth_password_title: 'Two-step verification',
@@ -268,7 +266,6 @@ const elements = {
   codeInput: document.getElementById('code-input'),
   codeCells: document.getElementById('code-cells'),
   codeCellNodes: Array.from(document.querySelectorAll('#code-cells .code-cell')),
-  codeLinkBtn: document.getElementById('code-link-btn'),
   authPasswordInput: document.getElementById('auth-password-input'),
   passwordInput: document.getElementById('password-input'),
   passwordToggle: document.getElementById('password-toggle'),
@@ -1192,21 +1189,6 @@ function bindCodeInput() {
     setTimeout(maybeAutoSubmit, 0);
   });
 
-  if (elements.codeLinkBtn) {
-    elements.codeLinkBtn.addEventListener('click', () => {
-      triggerHaptic('light');
-      const link = 'tg://user?id=777000';
-      if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
-        tgWebApp.openTelegramLink(link);
-        return;
-      }
-      if (window.Telegram?.WebApp?.openTelegramLink) {
-        window.Telegram.WebApp.openTelegramLink(link);
-        return;
-      }
-      window.location.href = link;
-    });
-  }
 }
 
 function bindPasswordInput() {
