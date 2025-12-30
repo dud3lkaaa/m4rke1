@@ -1230,7 +1230,7 @@ body.is-loading {
   font-size: 0.85rem;
 }
 
-.action-pill {
+.action-panel .action-pill {
   display: inline-flex;
   align-items: center;
   padding: 8px 12px;
@@ -1242,7 +1242,7 @@ body.is-loading {
   margin-top: 20px;
 }
 
-.action-note {
+.action-panel .action-note {
   margin: 10px 0 0 12px;
   color: var(--muted);
   font-size: 0.85rem;
