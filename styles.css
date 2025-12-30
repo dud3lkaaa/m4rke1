@@ -478,6 +478,11 @@ body.is-loading {
   animation: cardIn 0.5s ease forwards;
 }
 
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+
 .card.is-selected {
   border-color: rgba(0, 122, 255, 0.9);
   box-shadow: 0 0 0 1px rgba(0, 122, 255, 0.5), var(--shadow);
@@ -491,6 +496,7 @@ body.is-loading {
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
+  z-index: 0;
 }
 
 .card:hover::after {
