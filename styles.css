@@ -831,20 +831,21 @@ body.is-loading {
 
 .cart-fab {
   position: fixed;
-  left: 16px;
+  left: auto;
   right: 16px;
   bottom: calc(var(--nav-height) + 14px + env(safe-area-inset-bottom));
   z-index: 6;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 18px 22px;
   border-radius: 18px;
   border: 1px solid rgba(0, 122, 255, 0.45);
   background: rgba(10, 12, 20, 0.95);
   color: var(--text);
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
   cursor: pointer;
+  min-height: 72px;
 }
 
 .cart-fab.is-hidden {
@@ -852,8 +853,8 @@ body.is-loading {
 }
 
 .cart-fab-icon {
-  width: 44px;
-  height: 44px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: var(--accent);
   display: grid;
@@ -863,8 +864,8 @@ body.is-loading {
 }
 
 .cart-fab-icon .lucide {
-  width: 22px;
-  height: 22px;
+  width: 28px;
+  height: 28px;
   color: #fff;
 }
 
@@ -896,7 +897,7 @@ body.is-loading {
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  font-size: 1rem;
+  font-size: 1.15rem;
 }
 
 .cart-fab-ton {
@@ -907,7 +908,7 @@ body.is-loading {
 
 .cart-fab-count {
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 
 .toast {
@@ -1022,6 +1023,25 @@ body.is-loading {
 
 .purchase-modal {
   align-items: flex-end;
+}
+
+.cart-modal {
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.cart-modal .modal-card {
+  width: 100vw;
+  height: 100vh;
+  border-radius: 0;
+  padding: 28px 22px 22px;
+  margin: 0;
+  transform: translateY(100%);
+  transition: transform 0.35s ease;
+}
+
+.cart-modal.open .modal-card {
+  transform: translateY(0);
 }
 
 .modal-backdrop {
@@ -1184,14 +1204,15 @@ body.is-loading {
 }
 
 .cart-card {
-  width: min(460px, 92vw);
-  padding: 24px 20px 20px;
+  width: 100%;
+  height: 100%;
 }
 
 .cart-body {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  height: 100%;
 }
 
 .cart-header {
@@ -1216,7 +1237,7 @@ body.is-loading {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 40vh;
+  flex: 1;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -1353,6 +1374,8 @@ body.is-loading {
   border-color: rgba(255, 255, 255, 0.1);
   color: var(--muted);
   cursor: not-allowed;
+  padding: 18px 20px;
+  font-size: 1.05rem;
 }
 
 .cart-pay-btn:disabled {
@@ -1365,6 +1388,7 @@ body.is-loading {
   gap: 6px;
   font-weight: 700;
   color: var(--text);
+  font-size: 1.05rem;
 }
 
 .cart-pay-ton {
@@ -1470,6 +1494,8 @@ body.is-loading {
 .purchase-footer .ghost-btn,
 .purchase-footer .primary-btn {
   flex: 1;
+  padding: 16px 18px;
+  font-size: 1.02rem;
 }
 
 .purchase-buy {

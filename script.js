@@ -1057,6 +1057,10 @@ function createMarketCard(item, index, disableAnimation) {
   lock.addEventListener('click', (event) => {
     event.stopPropagation();
     triggerHaptic('light');
+    if (isInCart(item)) {
+      removeFromCart(item);
+      return;
+    }
     addToCart(item);
   });
 
