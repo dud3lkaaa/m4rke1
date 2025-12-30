@@ -1734,6 +1734,12 @@ function bindPurchaseModal() {
       closePurchaseModal();
     });
   });
+  elements.purchaseModal.addEventListener('click', (event) => {
+    if (event.target === elements.purchaseModal || event.target.classList.contains('modal-backdrop')) {
+      triggerHaptic('light');
+      closePurchaseModal();
+    }
+  });
 }
 
 function bindActions() {
