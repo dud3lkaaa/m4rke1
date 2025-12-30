@@ -1319,7 +1319,7 @@ function updateCartUi() {
   elements.cartCount.textContent = formatGiftCount(count);
   elements.cartBadge.textContent = String(count);
   elements.cartTotal.textContent = total;
-  elements.cartFab.classList.toggle('is-hidden', count === 0);
+  elements.cartFab.classList.toggle('is-visible', count > 0);
 }
 
 function renderCartModal() {

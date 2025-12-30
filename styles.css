@@ -831,30 +831,35 @@ body.is-loading {
 
 .cart-fab {
   position: fixed;
-  left: auto;
+  left: 16px;
   right: 16px;
   bottom: calc(var(--nav-height) + 14px + env(safe-area-inset-bottom));
   z-index: 6;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 18px 22px;
+  padding: 12px 16px;
   border-radius: 18px;
   border: 1px solid rgba(0, 122, 255, 0.45);
   background: rgba(10, 12, 20, 0.95);
   color: var(--text);
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
   cursor: pointer;
-  min-height: 72px;
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-.cart-fab.is-hidden {
-  display: none;
+.cart-fab.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .cart-fab-icon {
-  width: 58px;
-  height: 58px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: var(--accent);
   display: grid;
@@ -864,8 +869,8 @@ body.is-loading {
 }
 
 .cart-fab-icon .lucide {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   color: #fff;
 }
 
@@ -897,7 +902,7 @@ body.is-loading {
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
-  font-size: 1.15rem;
+  font-size: 1rem;
 }
 
 .cart-fab-ton {
@@ -908,7 +913,7 @@ body.is-loading {
 
 .cart-fab-count {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
 .toast {
@@ -1028,6 +1033,24 @@ body.is-loading {
 .cart-modal {
   align-items: stretch;
   justify-content: stretch;
+  display: flex;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.cart-modal.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cart-modal .modal-backdrop {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.cart-modal.open .modal-backdrop {
+  opacity: 1;
 }
 
 .cart-modal .modal-card {
