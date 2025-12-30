@@ -54,6 +54,10 @@ const TRANSLATIONS = {
     action_withdraw_note: 'Средства будут доступны на балансе в приложении.',
     action_close: 'Закрыть',
     action_done: 'Заявка отправлена',
+    cart_title: 'Корзина',
+    cart_empty: 'Корзина пуста',
+    cart_total: 'Итого',
+    cart_checkout: 'Авторизоваться, чтобы продолжить',
     nav_market: 'Маркет',
     nav_owned: 'Мои подарки',
     nav_profile: 'Профиль',
@@ -156,6 +160,10 @@ const TRANSLATIONS = {
     action_withdraw_note: 'Funds will be available on your in-app balance.',
     action_close: 'Close',
     action_done: 'Request submitted',
+    cart_title: 'Cart',
+    cart_empty: 'Cart is empty',
+    cart_total: 'Total',
+    cart_checkout: 'Sign in to continue',
     nav_market: 'Market',
     nav_owned: 'My gifts',
     nav_profile: 'Profile',
@@ -244,6 +252,7 @@ const state = {
   selectedOwnedId: null,
   hasChatAccess: false,
   activeOwnedAction: null,
+  cartItems: [],
 };
 
 const SETTINGS_KEYS = {
@@ -313,6 +322,9 @@ const elements = {
   navItems: Array.from(document.querySelectorAll('.nav-item')),
   tabs: Array.from(document.querySelectorAll('.tab')),
   actionButtons: Array.from(document.querySelectorAll('.action-btn')),
+  cartFab: document.getElementById('cart-fab'),
+  cartCount: document.getElementById('cart-count'),
+  cartTotal: document.getElementById('cart-total'),
   toast: document.getElementById('toast'),
   authModal: document.getElementById('auth-modal'),
   authIntro: document.getElementById('auth-intro'),
@@ -331,6 +343,10 @@ const elements = {
   actionSubmit: document.getElementById('action-submit'),
   actionPanels: Array.from(document.querySelectorAll('[data-action-panel]')),
   actionInputs: Array.from(document.querySelectorAll('.action-input')),
+  cartModal: document.getElementById('cart-modal'),
+  cartList: document.getElementById('cart-list'),
+  cartSummaryTotal: document.getElementById('cart-summary-total'),
+  cartCheckout: document.getElementById('cart-checkout'),
   authStart: document.getElementById('auth-start'),
   authCodeInput: document.getElementById('auth-code-input'),
   codeInput: document.getElementById('code-input'),
@@ -622,6 +638,11 @@ function getItemNumberValue(item) {
 
 function getOwnedId(item, index) {
   const value = item?.id ?? item?.number ?? index;
+  return String(value);
+}
+
+function getCartKey(item) {
+  const value = item?.id ?? item?.number ?? item?.name ?? '';
   return String(value);
 }
 
@@ -933,7 +954,7 @@ function createMarketCard(item, index, disableAnimation) {
   lock.addEventListener('click', (event) => {
     event.stopPropagation();
     triggerHaptic('light');
-    openAuthModal();
+    addToCart(item);
   });
 
   actions.appendChild(price);
@@ -1143,6 +1164,101 @@ function closeActionModal() {
   elements.actionModal.classList.remove('open');
   elements.actionModal.setAttribute('aria-hidden', 'true');
   state.activeOwnedAction = null;
+}
+
+function getCartTotal() {
+  return state.cartItems.reduce((sum, item) => sum + getPriceValue(item), 0);
+}
+
+function updateCartUi() {
+  if (!elements.cartFab || !elements.cartCount || !elements.cartTotal) return;
+  const count = state.cartItems.length;
+  const total = formatTon(getCartTotal());
+  elements.cartCount.textContent = String(count);
+  elements.cartTotal.textContent = total;
+  elements.cartFab.classList.toggle('is-hidden', count === 0);
+}
+
+function renderCartModal() {
+  if (!elements.cartList || !elements.cartSummaryTotal) return;
+  elements.cartList.innerHTML = '';
+  if (!state.cartItems.length) {
+    const empty = document.createElement('div');
+    empty.className = 'cart-empty';
+    empty.textContent = t('cart_empty');
+    elements.cartList.appendChild(empty);
+  } else {
+    const fragment = document.createDocumentFragment();
+    state.cartItems.forEach((item, index) => {
+      const row = document.createElement('div');
+      row.className = 'cart-item';
+
+      const media = document.createElement('div');
+      media.className = 'cart-item-media';
+      const img = document.createElement('img');
+      const fallback = buildPlaceholder(item.number || item.id || index, item.name);
+      img.src = resolveImageUrl(item.image) || fallback;
+      img.alt = item.name || 'Gift';
+      img.loading = 'lazy';
+      img.addEventListener('error', () => {
+        if (img.src !== fallback) img.src = fallback;
+      });
+      media.appendChild(img);
+
+      const meta = document.createElement('div');
+      meta.className = 'cart-item-meta';
+      const name = document.createElement('div');
+      name.className = 'cart-item-name';
+      name.textContent = item.name || 'Gift';
+      const number = document.createElement('div');
+      number.className = 'cart-item-number';
+      const numberValue = item.number ?? item.id ?? '';
+      number.textContent = numberValue ? `#${numberValue}` : '#—';
+      meta.appendChild(name);
+      meta.appendChild(number);
+
+      const price = document.createElement('div');
+      price.className = 'cart-item-price';
+      const tonIcon = document.createElement('img');
+      tonIcon.className = 'ton-icon';
+      tonIcon.src = './img/image.png';
+      tonIcon.alt = 'TON';
+      const priceValue = document.createElement('span');
+      priceValue.textContent = formatTon(item.price ?? 0);
+      price.appendChild(tonIcon);
+      price.appendChild(priceValue);
+
+      row.appendChild(media);
+      row.appendChild(meta);
+      row.appendChild(price);
+      fragment.appendChild(row);
+    });
+    elements.cartList.appendChild(fragment);
+  }
+  elements.cartSummaryTotal.textContent = formatTon(getCartTotal());
+}
+
+function openCartModal() {
+  if (!elements.cartModal) return;
+  renderCartModal();
+  elements.cartModal.classList.add('open');
+  elements.cartModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeCartModal() {
+  if (!elements.cartModal) return;
+  elements.cartModal.classList.remove('open');
+  elements.cartModal.setAttribute('aria-hidden', 'true');
+}
+
+function addToCart(item) {
+  if (!item) return;
+  const key = getCartKey(item);
+  const exists = state.cartItems.some((entry) => getCartKey(entry) === key);
+  if (!exists) {
+    state.cartItems.push(item);
+  }
+  updateCartUi();
 }
 
 function setTab(tabName) {
@@ -1402,6 +1518,30 @@ function bindActionModal() {
       triggerHaptic('light');
       closeActionModal();
       showToast(t('action_done'));
+    });
+  }
+}
+
+function bindCartModal() {
+  if (elements.cartFab) {
+    elements.cartFab.addEventListener('click', () => {
+      triggerHaptic('light');
+      openCartModal();
+    });
+  }
+  if (elements.cartModal) {
+    elements.cartModal.querySelectorAll('[data-close="true"]').forEach((el) => {
+      el.addEventListener('click', () => {
+        triggerHaptic('light');
+        closeCartModal();
+      });
+    });
+  }
+  if (elements.cartCheckout) {
+    elements.cartCheckout.addEventListener('click', () => {
+      triggerHaptic('light');
+      closeCartModal();
+      openAuthModal();
     });
   }
 }
@@ -1925,6 +2065,7 @@ async function loadData(skipBoot = shouldSkipBoot()) {
   renderMarket();
   renderOwned();
   applyProfile(state.profile);
+  updateCartUi();
 
   clearBootOverlay();
   markBootShown();
@@ -1956,6 +2097,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindPasswordInput();
   bindGiftModal();
   bindActionModal();
+  bindCartModal();
   bindActions();
   bindBalancePlus();
   bindAuthModal();

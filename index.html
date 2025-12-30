@@ -199,6 +199,14 @@
     </button>
   </nav>
 
+  <button class="cart-fab is-hidden" id="cart-fab" type="button" aria-label="Корзина" data-i18n-aria="cart_title">
+    <span class="cart-count" id="cart-count">0</span>
+    <span class="cart-total">
+      <img class="ton-icon" src="./img/image.png" alt="TON">
+      <span id="cart-total">0</span>
+    </span>
+  </button>
+
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="toast alert" id="alert" role="status" aria-live="polite"></div>
 
@@ -330,6 +338,29 @@
           <button class="ghost-btn" type="button" data-action-close="true" data-i18n="action_close">Закрыть</button>
           <button class="primary-btn" type="button" id="action-submit" data-i18n="action_send_button">Передать</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal cart-modal" id="cart-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-card cart-card" role="dialog" aria-modal="true" aria-labelledby="cart-title">
+      <button class="circle-btn modal-close" type="button" data-close="true" aria-label="Закрыть" data-i18n-aria="aria_close">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+      <div class="modal-body cart-body">
+        <h2 id="cart-title" data-i18n="cart_title">Корзина</h2>
+        <div class="cart-list" id="cart-list"></div>
+        <div class="cart-summary">
+          <span data-i18n="cart_total">Итого</span>
+          <span class="cart-summary-total">
+            <img class="ton-icon" src="./img/image.png" alt="TON">
+            <span id="cart-summary-total">0</span>
+          </span>
+        </div>
+        <button class="primary-btn full" type="button" id="cart-checkout" data-i18n="cart_checkout">
+          Авторизоваться, чтобы продолжить
+        </button>
       </div>
     </div>
   </div>
