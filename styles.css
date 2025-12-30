@@ -1239,11 +1239,11 @@ body.is-loading {
   border: 1px solid rgba(0, 122, 255, 0.45);
   font-weight: 600;
   font-size: 0.85rem;
-  margin-top: 0;
+  margin-top: 20px;
 }
 
 .action-note {
-  margin: 12px 0 0;
+  margin: 10px 0 0 12px;
   color: var(--muted);
   font-size: 0.85rem;
 }
