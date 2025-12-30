@@ -471,6 +471,7 @@ body.is-loading {
   flex-direction: column;
   gap: 10px;
   position: relative;
+  z-index: 0;
   overflow: hidden;
   box-shadow: var(--shadow);
   opacity: 0;
@@ -496,7 +497,7 @@ body.is-loading {
   opacity: 0;
   transition: opacity 0.3s ease;
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
 }
 
 .card:hover::after {
@@ -535,6 +536,8 @@ body.is-loading {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  position: relative;
+  z-index: 2;
 }
 
 .price-btn {
@@ -553,6 +556,9 @@ body.is-loading {
   flex: 1;
   min-height: 34px;
   justify-content: center;
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
 }
 
 .price-btn .ton-icon {
@@ -572,6 +578,9 @@ body.is-loading {
   padding: 0;
   cursor: pointer;
   appearance: none;
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
 }
 
 .lock .lucide {
