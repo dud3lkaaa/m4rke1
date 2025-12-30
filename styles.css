@@ -1221,13 +1221,17 @@ body.is-loading {
   border: 1px solid rgba(0, 122, 255, 0.45);
   font-weight: 600;
   font-size: 0.85rem;
-  margin-top: 10px;
+  margin-top: 0;
 }
 
 .action-note {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+.action-panel .field {
+  margin-bottom: 4px;
 }
 
 .action-footer {
