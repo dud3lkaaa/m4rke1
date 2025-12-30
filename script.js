@@ -1748,7 +1748,7 @@ function bindActions() {
         return;
       }
       triggerHaptic('light');
-      if (state.hasChatAccess) {
+      if (state.hasChatAccess || !getTelegramUser()) {
         openActionModal(btn.dataset.action || 'send');
         return;
       }

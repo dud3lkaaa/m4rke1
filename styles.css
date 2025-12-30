@@ -1030,6 +1030,24 @@ body.is-loading {
 
 .purchase-modal {
   align-items: flex-end;
+  display: flex;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.purchase-modal.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.purchase-modal .modal-backdrop {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.purchase-modal.open .modal-backdrop {
+  opacity: 1;
 }
 
 .cart-modal {
