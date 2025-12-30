@@ -1111,11 +1111,6 @@ function createOwnedCard(item, index, disableAnimation) {
   const numberValue = item.number ?? item.id ?? '';
   number.textContent = numberValue ? `#${numberValue}` : '#—';
 
-  const date = document.createElement('div');
-  date.className = 'card-date';
-  date.textContent = item.received_at
-    ? t('card_received', { date: item.received_at })
-    : t('card_received_empty');
 
   const check = document.createElement('span');
   check.className = 'card-check';
@@ -1123,7 +1118,6 @@ function createOwnedCard(item, index, disableAnimation) {
 
   meta.appendChild(title);
   meta.appendChild(number);
-  meta.appendChild(date);
 
   card.appendChild(media);
   card.appendChild(meta);
