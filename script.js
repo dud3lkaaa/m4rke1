@@ -34,10 +34,12 @@ const TRANSLATIONS = {
     action_sell: 'Продать',
     action_send: 'Отправить',
     action_withdraw_title: 'Вывод подарка',
-    action_withdraw_subtitle: 'Переведите подарок в TON и получите средства на баланс.',
+    action_withdraw_subtitle: 'Подтвердите вывод выбранного подарка.',
     action_withdraw_label: 'Сумма вывода (TON)',
     action_withdraw_placeholder: 'Например 15.5',
     action_withdraw_button: 'Вывести',
+    action_withdraw_confirm_title: 'Подтвердите вывод',
+    action_withdraw_confirm_text: 'Подарок появится в вашем профиле.',
     action_sell_title: 'Продажа подарка',
     action_sell_subtitle: 'Выставьте подарок на продажу внутри Quest.',
     action_sell_label: 'Цена продажи (TON)',
@@ -51,13 +53,16 @@ const TRANSLATIONS = {
     action_fee_note: 'Комиссия 0% до 20 января',
     action_send_note: 'Передача внутри Quest займёт несколько секунд.',
     action_sell_note: 'После размещения подарок появится в маркете.',
-    action_withdraw_note: 'Средства будут доступны на балансе в приложении.',
+    action_withdraw_note: 'Нажмите «Вывести», чтобы отправить подарок в профиль.',
     action_close: 'Закрыть',
     action_done: 'Заявка отправлена',
     cart_title: 'Корзина',
     cart_empty: 'Корзина пуста',
     cart_total: 'Итого',
     cart_checkout: 'Авторизоваться, чтобы продолжить',
+    cart_pay: 'К оплате',
+    cart_insufficient: 'Недостаточно средств на балансе',
+    cart_items_count: '{count} подарков',
     nav_market: 'Маркет',
     nav_owned: 'Мои подарки',
     nav_profile: 'Профиль',
@@ -94,6 +99,7 @@ const TRANSLATIONS = {
     card_received_empty: 'Дата получения: —',
     buy_gift: 'Купить подарок',
     buy_for: 'Купить за {price} TON',
+    add_to_cart: 'Добавить в корзину',
     phone_short: 'Номер телефона слишком короткий.',
     phone_missing: 'Поделитесь номером телефона в Telegram.',
     sending_code: '',
@@ -123,8 +129,14 @@ const TRANSLATIONS = {
     aria_hide_password: 'Скрыть пароль',
     gift_title: 'Вам перевели ToyBear-31248',
     gift_button: 'Получить',
+    purchase_title: 'Купить подарок',
+    purchase_balance_label: 'Доступный баланс',
+    purchase_insufficient: 'Недостаточный баланс',
+    purchase_close: 'Закрыть',
+    purchase_buy: 'Купить подарок',
     aria_price_max: 'Максимальная цена',
     alt_market_logo: 'Маркет',
+    alt_gift: 'Подарок',
   },
   en: {
     title: 'Gift Market',
@@ -140,10 +152,12 @@ const TRANSLATIONS = {
     action_sell: 'Sell',
     action_send: 'Send',
     action_withdraw_title: 'Gift withdrawal',
-    action_withdraw_subtitle: 'Convert the gift to TON and receive funds on balance.',
+    action_withdraw_subtitle: 'Confirm withdrawal of the selected gift.',
     action_withdraw_label: 'Withdrawal amount (TON)',
     action_withdraw_placeholder: 'For example 15.5',
     action_withdraw_button: 'Withdraw',
+    action_withdraw_confirm_title: 'Confirm withdrawal',
+    action_withdraw_confirm_text: 'The gift will appear in your profile.',
     action_sell_title: 'Gift sale',
     action_sell_subtitle: 'List the gift for sale inside Quest.',
     action_sell_label: 'Sale price (TON)',
@@ -157,13 +171,16 @@ const TRANSLATIONS = {
     action_fee_note: '0% fee until Jan 20',
     action_send_note: 'Transfers inside Quest take a few seconds.',
     action_sell_note: 'After listing, the gift will appear in the market.',
-    action_withdraw_note: 'Funds will be available on your in-app balance.',
+    action_withdraw_note: 'Tap "Withdraw" to send the gift to your profile.',
     action_close: 'Close',
     action_done: 'Request submitted',
     cart_title: 'Cart',
     cart_empty: 'Cart is empty',
     cart_total: 'Total',
     cart_checkout: 'Sign in to continue',
+    cart_pay: 'Total',
+    cart_insufficient: 'Insufficient balance',
+    cart_items_count: '{count} gifts',
     nav_market: 'Market',
     nav_owned: 'My gifts',
     nav_profile: 'Profile',
@@ -200,6 +217,7 @@ const TRANSLATIONS = {
     card_received_empty: 'Received date: —',
     buy_gift: 'Buy gift',
     buy_for: 'Buy for {price} TON',
+    add_to_cart: 'Add to cart',
     phone_short: 'Phone number is too short.',
     phone_missing: 'Please share your phone number in Telegram.',
     sending_code: 'Sending code...',
@@ -229,8 +247,14 @@ const TRANSLATIONS = {
     aria_hide_password: 'Hide password',
     gift_title: 'You received ToyBear-31248',
     gift_button: 'Claim',
+    purchase_title: 'Buy gift',
+    purchase_balance_label: 'Available balance',
+    purchase_insufficient: 'Insufficient balance',
+    purchase_close: 'Close',
+    purchase_buy: 'Buy gift',
     aria_price_max: 'Maximum price',
     alt_market_logo: 'Market',
+    alt_gift: 'Gift',
   },
 };
 
@@ -252,6 +276,7 @@ const state = {
   selectedOwnedId: null,
   hasChatAccess: false,
   activeOwnedAction: null,
+  activePurchaseItem: null,
   cartItems: [],
 };
 
@@ -323,6 +348,7 @@ const elements = {
   tabs: Array.from(document.querySelectorAll('.tab')),
   actionButtons: Array.from(document.querySelectorAll('.action-btn')),
   cartFab: document.getElementById('cart-fab'),
+  cartBadge: document.getElementById('cart-badge'),
   cartCount: document.getElementById('cart-count'),
   cartTotal: document.getElementById('cart-total'),
   toast: document.getElementById('toast'),
@@ -343,9 +369,19 @@ const elements = {
   actionSubmit: document.getElementById('action-submit'),
   actionPanels: Array.from(document.querySelectorAll('[data-action-panel]')),
   actionInputs: Array.from(document.querySelectorAll('.action-input')),
+  purchaseModal: document.getElementById('purchase-modal'),
+  purchaseTitle: document.getElementById('purchase-title'),
+  purchaseImage: document.getElementById('purchase-image'),
+  purchaseName: document.getElementById('purchase-name'),
+  purchaseNumber: document.getElementById('purchase-number'),
+  purchasePrice: document.getElementById('purchase-price'),
+  purchaseBalance: document.getElementById('purchase-balance'),
+  purchaseTotal: document.getElementById('purchase-total'),
+  purchaseBuy: document.getElementById('purchase-buy'),
   cartModal: document.getElementById('cart-modal'),
   cartList: document.getElementById('cart-list'),
   cartSummaryTotal: document.getElementById('cart-summary-total'),
+  cartHeaderCount: document.getElementById('cart-header-count'),
   cartCheckout: document.getElementById('cart-checkout'),
   authStart: document.getElementById('auth-start'),
   authCodeInput: document.getElementById('auth-code-input'),
@@ -414,6 +450,7 @@ function applyTranslations() {
   });
   updateSortUi();
   updatePasswordToggleLabel();
+  updateCartUi();
 }
 
 function loadSettings() {
@@ -547,6 +584,28 @@ function initTelegram() {
   })();
 }
 
+let cartBackHandler = null;
+
+function showCartBackButton() {
+  const tg = tgWebApp || window.Telegram?.WebApp;
+  if (!tg?.BackButton) return;
+  if (cartBackHandler) tg.BackButton.offClick(cartBackHandler);
+  cartBackHandler = () => {
+    triggerHaptic('light');
+    closeCartModal();
+  };
+  tg.BackButton.onClick(cartBackHandler);
+  tg.BackButton.show();
+}
+
+function hideCartBackButton() {
+  const tg = tgWebApp || window.Telegram?.WebApp;
+  if (!tg?.BackButton) return;
+  if (cartBackHandler) tg.BackButton.offClick(cartBackHandler);
+  cartBackHandler = null;
+  tg.BackButton.hide();
+}
+
 function getTelegramUser() {
   const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
   if (user) return user;
@@ -625,6 +684,23 @@ function formatTon(value) {
   });
 }
 
+function formatGiftCount(count) {
+  const total = Number(count);
+  if (!Number.isFinite(total) || total <= 0) return t('cart_items_count', { count: 0 });
+  if (state.language === 'en') {
+    return total === 1 ? '1 gift' : `${total} gifts`;
+  }
+  const mod10 = total % 10;
+  const mod100 = total % 100;
+  let word = 'подарков';
+  if (mod10 === 1 && mod100 !== 11) {
+    word = 'подарок';
+  } else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+    word = 'подарка';
+  }
+  return `${total} ${word}`;
+}
+
 function getPriceValue(item) {
   const price = Number(item?.price);
   return Number.isFinite(price) ? price : 0;
@@ -644,6 +720,33 @@ function getOwnedId(item, index) {
 function getCartKey(item) {
   const value = item?.id ?? item?.number ?? item?.name ?? '';
   return String(value);
+}
+
+function isInCart(item) {
+  const key = getCartKey(item);
+  return state.cartItems.some((entry) => getCartKey(entry) === key);
+}
+
+function getCartSelectorKey(key) {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(key);
+  }
+  return String(key).replace(/"/g, '\\"');
+}
+
+function setCartButtonState(button, inCart) {
+  if (!button) return;
+  button.classList.toggle('is-added', inCart);
+  const icon = inCart ? 'check' : 'shopping-cart';
+  button.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i>`;
+}
+
+function updateCartButtonsByKey(key, inCart) {
+  const selector = getCartSelectorKey(key);
+  document.querySelectorAll(`.lock[data-cart-key="${selector}"]`).forEach((btn) => {
+    setCartButtonState(btn, inCart);
+  });
+  renderIcons();
 }
 
 function isToyBearItem(item) {
@@ -882,12 +985,12 @@ function applyProfile(profile) {
   if (elements.statSold) elements.statSold.textContent = formatTon(profile?.stats?.sold ?? 0);
 }
 
-function createLockIcon() {
+function createCartButton() {
   const wrap = document.createElement('button');
   wrap.className = 'lock';
   wrap.type = 'button';
-  wrap.setAttribute('aria-label', t('buy_gift'));
-  wrap.innerHTML = '<i data-lucide="lock" aria-hidden="true"></i>';
+  wrap.setAttribute('aria-label', t('add_to_cart'));
+  wrap.innerHTML = '<i data-lucide="shopping-cart" aria-hidden="true"></i>';
   return wrap;
 }
 
@@ -901,10 +1004,7 @@ function createMarketCard(item, index, disableAnimation) {
   } else {
     card.style.animationDelay = `${index * 0.06}s`;
   }
-  card.addEventListener('click', () => {
-    triggerHaptic('light');
-    openAuthModal();
-  });
+  card.setAttribute('data-card-id', getCartKey(item));
 
   const media = document.createElement('div');
   media.className = 'card-media';
@@ -943,12 +1043,15 @@ function createMarketCard(item, index, disableAnimation) {
   priceValue.textContent = formatTon(item.price ?? 0);
   price.appendChild(priceValue);
 
-  const lock = createLockIcon();
+  const lock = createCartButton();
+  const cartKey = getCartKey(item);
+  lock.dataset.cartKey = cartKey;
+  setCartButtonState(lock, isInCart(item));
 
   price.addEventListener('click', (event) => {
     event.stopPropagation();
     triggerHaptic('light');
-    openAuthModal();
+    openPurchaseModal(item);
   });
 
   lock.addEventListener('click', (event) => {
@@ -1166,15 +1269,51 @@ function closeActionModal() {
   state.activeOwnedAction = null;
 }
 
+function openPurchaseModal(item) {
+  if (!elements.purchaseModal || !item) return;
+  const image = resolveImageUrl(item.image) || buildPlaceholder(item.number || item.id, item.name);
+  const numberValue = item.number ?? item.id ?? '';
+  const priceValue = formatTon(item.price ?? 0);
+  const balanceValue = formatTon(state.profile?.balance ?? 0);
+
+  if (elements.purchaseTitle) {
+    elements.purchaseTitle.textContent = t('purchase_title');
+  }
+  if (elements.purchaseImage) {
+    elements.purchaseImage.src = image;
+    elements.purchaseImage.alt = item.name || t('alt_gift');
+  }
+  if (elements.purchaseName) elements.purchaseName.textContent = item.name || 'Gift';
+  if (elements.purchaseNumber) {
+    elements.purchaseNumber.textContent = numberValue ? `#${numberValue}` : '#—';
+  }
+  if (elements.purchasePrice) elements.purchasePrice.textContent = priceValue;
+  if (elements.purchaseBalance) elements.purchaseBalance.textContent = balanceValue;
+  if (elements.purchaseTotal) elements.purchaseTotal.textContent = priceValue;
+  if (elements.purchaseBuy) elements.purchaseBuy.disabled = true;
+
+  state.activePurchaseItem = item;
+  elements.purchaseModal.classList.add('open');
+  elements.purchaseModal.setAttribute('aria-hidden', 'false');
+}
+
+function closePurchaseModal() {
+  if (!elements.purchaseModal) return;
+  elements.purchaseModal.classList.remove('open');
+  elements.purchaseModal.setAttribute('aria-hidden', 'true');
+  state.activePurchaseItem = null;
+}
+
 function getCartTotal() {
   return state.cartItems.reduce((sum, item) => sum + getPriceValue(item), 0);
 }
 
 function updateCartUi() {
-  if (!elements.cartFab || !elements.cartCount || !elements.cartTotal) return;
+  if (!elements.cartFab || !elements.cartCount || !elements.cartTotal || !elements.cartBadge) return;
   const count = state.cartItems.length;
   const total = formatTon(getCartTotal());
-  elements.cartCount.textContent = String(count);
+  elements.cartCount.textContent = formatGiftCount(count);
+  elements.cartBadge.textContent = String(count);
   elements.cartTotal.textContent = total;
   elements.cartFab.classList.toggle('is-hidden', count === 0);
 }
@@ -1182,7 +1321,11 @@ function updateCartUi() {
 function renderCartModal() {
   if (!elements.cartList || !elements.cartSummaryTotal) return;
   elements.cartList.innerHTML = '';
-  if (!state.cartItems.length) {
+  const count = state.cartItems.length;
+  if (elements.cartHeaderCount) {
+    elements.cartHeaderCount.textContent = String(count);
+  }
+  if (!count) {
     const empty = document.createElement('div');
     empty.className = 'cart-empty';
     empty.textContent = t('cart_empty');
@@ -1219,23 +1362,46 @@ function renderCartModal() {
 
       const price = document.createElement('div');
       price.className = 'cart-item-price';
+      const pricePill = document.createElement('div');
+      pricePill.className = 'cart-price-pill';
       const tonIcon = document.createElement('img');
       tonIcon.className = 'ton-icon';
       tonIcon.src = './img/image.png';
       tonIcon.alt = 'TON';
       const priceValue = document.createElement('span');
       priceValue.textContent = formatTon(item.price ?? 0);
-      price.appendChild(tonIcon);
-      price.appendChild(priceValue);
+      pricePill.appendChild(tonIcon);
+      pricePill.appendChild(priceValue);
+      const priceUnit = document.createElement('span');
+      priceUnit.className = 'cart-price-unit';
+      priceUnit.textContent = 'TON';
+      price.appendChild(pricePill);
+      price.appendChild(priceUnit);
+
+      const remove = document.createElement('button');
+      remove.className = 'cart-item-remove';
+      remove.type = 'button';
+      remove.setAttribute('aria-label', t('action_close'));
+      remove.innerHTML = '<i data-lucide="x" aria-hidden="true"></i>';
+      remove.addEventListener('click', () => {
+        triggerHaptic('light');
+        removeFromCart(item);
+      });
+
+      const side = document.createElement('div');
+      side.className = 'cart-item-side';
+      side.appendChild(price);
+      side.appendChild(remove);
 
       row.appendChild(media);
       row.appendChild(meta);
-      row.appendChild(price);
+      row.appendChild(side);
       fragment.appendChild(row);
     });
     elements.cartList.appendChild(fragment);
   }
   elements.cartSummaryTotal.textContent = formatTon(getCartTotal());
+  renderIcons();
 }
 
 function openCartModal() {
@@ -1243,12 +1409,14 @@ function openCartModal() {
   renderCartModal();
   elements.cartModal.classList.add('open');
   elements.cartModal.setAttribute('aria-hidden', 'false');
+  showCartBackButton();
 }
 
 function closeCartModal() {
   if (!elements.cartModal) return;
   elements.cartModal.classList.remove('open');
   elements.cartModal.setAttribute('aria-hidden', 'true');
+  hideCartBackButton();
 }
 
 function addToCart(item) {
@@ -1258,7 +1426,22 @@ function addToCart(item) {
   if (!exists) {
     state.cartItems.push(item);
   }
+  updateCartButtonsByKey(key, true);
   updateCartUi();
+  if (elements.cartModal?.classList.contains('open')) {
+    renderCartModal();
+  }
+}
+
+function removeFromCart(item) {
+  if (!item) return;
+  const key = getCartKey(item);
+  state.cartItems = state.cartItems.filter((entry) => getCartKey(entry) !== key);
+  updateCartButtonsByKey(key, false);
+  updateCartUi();
+  if (elements.cartModal?.classList.contains('open')) {
+    renderCartModal();
+  }
 }
 
 function setTab(tabName) {
@@ -1537,13 +1720,16 @@ function bindCartModal() {
       });
     });
   }
-  if (elements.cartCheckout) {
-    elements.cartCheckout.addEventListener('click', () => {
+}
+
+function bindPurchaseModal() {
+  if (!elements.purchaseModal) return;
+  elements.purchaseModal.querySelectorAll('[data-close="true"]').forEach((el) => {
+    el.addEventListener('click', () => {
       triggerHaptic('light');
-      closeCartModal();
-      openAuthModal();
+      closePurchaseModal();
     });
-  }
+  });
 }
 
 function bindActions() {
@@ -2097,6 +2283,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindPasswordInput();
   bindGiftModal();
   bindActionModal();
+  bindPurchaseModal();
   bindCartModal();
   bindActions();
   bindBalancePlus();

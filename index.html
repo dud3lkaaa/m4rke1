@@ -200,10 +200,16 @@
   </nav>
 
   <button class="cart-fab is-hidden" id="cart-fab" type="button" aria-label="Корзина" data-i18n-aria="cart_title">
-    <span class="cart-count" id="cart-count">0</span>
-    <span class="cart-total">
-      <img class="ton-icon" src="./img/image.png" alt="TON">
-      <span id="cart-total">0</span>
+    <span class="cart-fab-icon">
+      <i data-lucide="shopping-cart" aria-hidden="true"></i>
+      <span class="cart-badge" id="cart-badge">0</span>
+    </span>
+    <span class="cart-fab-info">
+      <span class="cart-fab-total">
+        <span id="cart-total">0</span>
+        <span class="cart-fab-ton">TON</span>
+      </span>
+      <span class="cart-fab-count" id="cart-count">0</span>
     </span>
   </button>
 
@@ -326,17 +332,61 @@
         </div>
 
         <div class="action-panel" data-action-panel="withdraw">
-          <label class="field">
-            <span data-i18n="action_withdraw_label">Сумма вывода (TON)</span>
-            <input class="action-input" id="action-withdraw-input" type="text" inputmode="decimal" placeholder="Например 15.5" data-i18n-placeholder="action_withdraw_placeholder">
-          </label>
+          <div class="action-summary">
+            <div class="action-summary-title" data-i18n="action_withdraw_confirm_title">Подтвердите вывод</div>
+            <div class="action-summary-text" data-i18n="action_withdraw_confirm_text">Подарок появится в вашем профиле.</div>
+          </div>
           <div class="action-pill" data-i18n="action_fee_note">Комиссия 0% до 20 января</div>
-          <p class="action-note" data-i18n="action_withdraw_note">Средства будут доступны на балансе в приложении.</p>
+          <p class="action-note" data-i18n="action_withdraw_note">Нажмите «Вывести», чтобы отправить подарок в профиль.</p>
         </div>
 
         <div class="action-footer">
           <button class="ghost-btn" type="button" data-action-close="true" data-i18n="action_close">Закрыть</button>
           <button class="primary-btn" type="button" id="action-submit" data-i18n="action_send_button">Передать</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal purchase-modal" id="purchase-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-card purchase-card" role="dialog" aria-modal="true" aria-labelledby="purchase-title">
+      <button class="circle-btn modal-close" type="button" data-close="true" aria-label="Закрыть" data-i18n-aria="aria_close">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+      <div class="modal-body purchase-body">
+        <h2 id="purchase-title" data-i18n="purchase_title">Купить подарок</h2>
+        <div class="purchase-item">
+          <div class="purchase-item-media">
+            <img id="purchase-image" src="" alt="" data-i18n-alt="alt_gift">
+          </div>
+          <div class="purchase-item-info">
+            <div class="purchase-item-name" id="purchase-name">Gift</div>
+            <div class="purchase-item-number" id="purchase-number">#—</div>
+          </div>
+          <div class="purchase-item-price">
+            <img class="ton-icon" src="./img/image.png" alt="TON">
+            <span id="purchase-price">0</span>
+            <span class="purchase-unit">TON</span>
+          </div>
+        </div>
+        <div class="purchase-balance">
+          <span data-i18n="purchase_balance_label">Доступный баланс</span>
+          <span class="purchase-balance-value">
+            <span id="purchase-balance">0</span>
+            <span class="purchase-unit">TON</span>
+          </span>
+        </div>
+        <div class="purchase-warning" data-i18n="purchase_insufficient">Недостаточный баланс</div>
+        <div class="purchase-footer">
+          <button class="ghost-btn" type="button" data-close="true" data-i18n="purchase_close">Закрыть</button>
+          <button class="primary-btn purchase-buy" type="button" id="purchase-buy" data-i18n="purchase_buy" disabled>
+            <span data-i18n="purchase_buy">Купить подарок</span>
+            <span class="purchase-buy-total">
+              <span id="purchase-total">0</span>
+              <span class="purchase-unit">TON</span>
+            </span>
+          </button>
         </div>
       </div>
     </div>
@@ -349,17 +399,22 @@
         <i data-lucide="x" aria-hidden="true"></i>
       </button>
       <div class="modal-body cart-body">
-        <h2 id="cart-title" data-i18n="cart_title">Корзина</h2>
-        <div class="cart-list" id="cart-list"></div>
-        <div class="cart-summary">
-          <span data-i18n="cart_total">Итого</span>
-          <span class="cart-summary-total">
-            <img class="ton-icon" src="./img/image.png" alt="TON">
-            <span id="cart-summary-total">0</span>
-          </span>
+        <div class="cart-header">
+          <h2 id="cart-title" data-i18n="cart_title">Корзина</h2>
+          <span class="cart-header-dot"></span>
+          <span class="cart-header-count" id="cart-header-count">0</span>
         </div>
-        <button class="primary-btn full" type="button" id="cart-checkout" data-i18n="cart_checkout">
-          Авторизоваться, чтобы продолжить
+        <div class="cart-list" id="cart-list"></div>
+        <div class="cart-warning">
+          <span class="cart-warning-icon">!</span>
+          <span data-i18n="cart_insufficient">Недостаточно средств на балансе</span>
+        </div>
+        <button class="primary-btn full cart-pay-btn" type="button" id="cart-checkout" data-i18n="cart_pay" disabled>
+          <span data-i18n="cart_pay">К оплате</span>
+          <span class="cart-pay-total">
+            <span id="cart-summary-total">0</span>
+            <span class="cart-pay-ton">TON</span>
+          </span>
         </button>
       </div>
     </div>
