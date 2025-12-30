@@ -279,6 +279,61 @@
     </div>
   </div>
 
+  <div class="modal action-modal" id="action-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-card action-card" role="dialog" aria-modal="true" aria-labelledby="action-title">
+      <button class="circle-btn modal-close" type="button" data-close="true" aria-label="Закрыть" data-i18n-aria="aria_close">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+      <div class="modal-body action-body">
+        <div class="action-gift">
+          <div class="action-gift-media">
+            <img id="action-gift-image" src="" alt="Gift">
+          </div>
+          <div class="action-gift-meta">
+            <div class="action-gift-name" id="action-gift-name">Gift</div>
+            <div class="action-gift-number" id="action-gift-number">#—</div>
+          </div>
+        </div>
+
+        <h2 id="action-title" data-i18n="action_send_title">Передача подарка</h2>
+        <p id="action-subtitle" data-i18n="action_send_subtitle">Отправьте подарок другому пользователю.</p>
+
+        <div class="action-panel is-active" data-action-panel="send">
+          <label class="field">
+            <span data-i18n="action_send_label">Получатель</span>
+            <input class="action-input" id="action-send-input" type="text" placeholder="@username" data-i18n-placeholder="action_send_placeholder">
+          </label>
+          <div class="action-pill" data-i18n="action_fee_note">Комиссия 0% до 20 января</div>
+          <p class="action-note" data-i18n="action_send_note">Передача внутри Quest займёт несколько секунд.</p>
+        </div>
+
+        <div class="action-panel" data-action-panel="sell">
+          <label class="field">
+            <span data-i18n="action_sell_label">Цена продажи (TON)</span>
+            <input class="action-input" id="action-sell-input" type="text" inputmode="decimal" placeholder="Например 24" data-i18n-placeholder="action_sell_placeholder">
+          </label>
+          <div class="action-pill" data-i18n="action_fee_note">Комиссия 0% до 20 января</div>
+          <p class="action-note" data-i18n="action_sell_note">После размещения подарок появится в маркете.</p>
+        </div>
+
+        <div class="action-panel" data-action-panel="withdraw">
+          <label class="field">
+            <span data-i18n="action_withdraw_label">Сумма вывода (TON)</span>
+            <input class="action-input" id="action-withdraw-input" type="text" inputmode="decimal" placeholder="Например 15.5" data-i18n-placeholder="action_withdraw_placeholder">
+          </label>
+          <div class="action-pill" data-i18n="action_fee_note">Комиссия 0% до 20 января</div>
+          <p class="action-note" data-i18n="action_withdraw_note">Средства будут доступны на балансе в приложении.</p>
+        </div>
+
+        <div class="action-footer">
+          <button class="ghost-btn" type="button" data-action-close="true" data-i18n="action_close">Закрыть</button>
+          <button class="primary-btn" type="button" id="action-submit" data-i18n="action_send_button">Передать</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal gift-modal" id="gift-modal" aria-hidden="true">
     <div class="modal-backdrop" data-close="true"></div>
     <div class="modal-card gift-card" role="dialog" aria-modal="true" aria-labelledby="gift-title">

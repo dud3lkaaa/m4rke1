@@ -33,6 +33,27 @@ const TRANSLATIONS = {
     action_withdraw: 'Вывести',
     action_sell: 'Продать',
     action_send: 'Отправить',
+    action_withdraw_title: 'Вывод подарка',
+    action_withdraw_subtitle: 'Переведите подарок в TON и получите средства на баланс.',
+    action_withdraw_label: 'Сумма вывода (TON)',
+    action_withdraw_placeholder: 'Например 15.5',
+    action_withdraw_button: 'Вывести',
+    action_sell_title: 'Продажа подарка',
+    action_sell_subtitle: 'Выставьте подарок на продажу внутри Quest.',
+    action_sell_label: 'Цена продажи (TON)',
+    action_sell_placeholder: 'Например 24',
+    action_sell_button: 'Выставить',
+    action_send_title: 'Передача подарка',
+    action_send_subtitle: 'Отправьте подарок другому пользователю.',
+    action_send_label: 'Получатель',
+    action_send_placeholder: '@username',
+    action_send_button: 'Передать',
+    action_fee_note: 'Комиссия 0% до 20 января',
+    action_send_note: 'Передача внутри Quest займёт несколько секунд.',
+    action_sell_note: 'После размещения подарок появится в маркете.',
+    action_withdraw_note: 'Средства будут доступны на балансе в приложении.',
+    action_close: 'Закрыть',
+    action_done: 'Заявка отправлена',
     nav_market: 'Маркет',
     nav_owned: 'Мои подарки',
     nav_profile: 'Профиль',
@@ -114,6 +135,27 @@ const TRANSLATIONS = {
     action_withdraw: 'Withdraw',
     action_sell: 'Sell',
     action_send: 'Send',
+    action_withdraw_title: 'Gift withdrawal',
+    action_withdraw_subtitle: 'Convert the gift to TON and receive funds on balance.',
+    action_withdraw_label: 'Withdrawal amount (TON)',
+    action_withdraw_placeholder: 'For example 15.5',
+    action_withdraw_button: 'Withdraw',
+    action_sell_title: 'Gift sale',
+    action_sell_subtitle: 'List the gift for sale inside Quest.',
+    action_sell_label: 'Sale price (TON)',
+    action_sell_placeholder: 'For example 24',
+    action_sell_button: 'List for sale',
+    action_send_title: 'Gift transfer',
+    action_send_subtitle: 'Send the gift to another user.',
+    action_send_label: 'Recipient',
+    action_send_placeholder: '@username',
+    action_send_button: 'Send',
+    action_fee_note: '0% fee until Jan 20',
+    action_send_note: 'Transfers inside Quest take a few seconds.',
+    action_sell_note: 'After listing, the gift will appear in the market.',
+    action_withdraw_note: 'Funds will be available on your in-app balance.',
+    action_close: 'Close',
+    action_done: 'Request submitted',
     nav_market: 'Market',
     nav_owned: 'My gifts',
     nav_profile: 'Profile',
@@ -200,6 +242,8 @@ const state = {
   ownedRendered: false,
   isAuthorized: false,
   selectedOwnedId: null,
+  hasChatAccess: false,
+  activeOwnedAction: null,
 };
 
 const SETTINGS_KEYS = {
@@ -212,6 +256,23 @@ const GIFT_POPUP_NUMBER = 31248;
 const GIFT_POPUP_NAME = 'Toy Bear';
 const GIFT_POPUP_KEY = 'market.gift.toybear31248.last';
 const GIFT_POPUP_GIF = '/market-data/src/ToyBear.gif';
+const ACTION_CONFIG = {
+  withdraw: {
+    title: 'action_withdraw_title',
+    subtitle: 'action_withdraw_subtitle',
+    button: 'action_withdraw_button',
+  },
+  sell: {
+    title: 'action_sell_title',
+    subtitle: 'action_sell_subtitle',
+    button: 'action_sell_button',
+  },
+  send: {
+    title: 'action_send_title',
+    subtitle: 'action_send_subtitle',
+    button: 'action_send_button',
+  },
+};
 
 let tgWebApp = null;
 let authToken = null;
@@ -261,6 +322,15 @@ const elements = {
   authLoading: document.getElementById('auth-loading'),
   authSuccess: document.getElementById('auth-success'),
   authStatus: document.getElementById('auth-status'),
+  actionModal: document.getElementById('action-modal'),
+  actionTitle: document.getElementById('action-title'),
+  actionSubtitle: document.getElementById('action-subtitle'),
+  actionGiftImage: document.getElementById('action-gift-image'),
+  actionGiftName: document.getElementById('action-gift-name'),
+  actionGiftNumber: document.getElementById('action-gift-number'),
+  actionSubmit: document.getElementById('action-submit'),
+  actionPanels: Array.from(document.querySelectorAll('[data-action-panel]')),
+  actionInputs: Array.from(document.querySelectorAll('.action-input')),
   authStart: document.getElementById('auth-start'),
   authCodeInput: document.getElementById('auth-code-input'),
   codeInput: document.getElementById('code-input'),
@@ -498,6 +568,25 @@ function buildRequesterPayload() {
   };
 }
 
+function getProfilePath() {
+  const user = getTelegramUser();
+  if (!user) return '/market/profile';
+  const params = new URLSearchParams();
+  if (user.id != null) params.set('user_id', user.id);
+  if (user.username) params.set('username', user.username);
+  const query = params.toString();
+  return query ? `/market/profile?${query}` : '/market/profile';
+}
+
+function getAccessPath() {
+  const user = getTelegramUser();
+  if (!user || user.id == null) return '/market/access';
+  const params = new URLSearchParams();
+  params.set('user_id', user.id);
+  const query = params.toString();
+  return query ? `/market/access?${query}` : '/market/access';
+}
+
 async function fetchJson(path, fallback) {
   try {
     const res = await fetch(`${API_BASE}${path}`, { cache: 'no-store' });
@@ -529,6 +618,11 @@ function getItemNumberValue(item) {
   const raw = item?.number ?? item?.id ?? 0;
   const num = Number(String(raw).replace(/\D/g, ''));
   return Number.isFinite(num) ? num : 0;
+}
+
+function getOwnedId(item, index) {
+  const value = item?.id ?? item?.number ?? index;
+  return String(value);
 }
 
 function isToyBearItem(item) {
@@ -863,8 +957,7 @@ function createOwnedCard(item, index, disableAnimation) {
   } else {
     card.style.animationDelay = `${index * 0.06}s`;
   }
-  const ownedId = item.id ?? item.number ?? index;
-  card.dataset.ownedId = String(ownedId);
+  card.dataset.ownedId = getOwnedId(item, index);
 
   const media = document.createElement('div');
   media.className = 'card-media';
@@ -982,6 +1075,74 @@ function setOwnedSelection(card) {
   }
   card.classList.add('is-selected');
   state.selectedOwnedId = card.dataset.ownedId || null;
+}
+
+function getSelectedOwnedItem() {
+  if (!state.selectedOwnedId) return null;
+  for (let i = 0; i < state.owned.length; i += 1) {
+    const item = state.owned[i];
+    if (getOwnedId(item, i) === state.selectedOwnedId) {
+      return item;
+    }
+  }
+  return null;
+}
+
+function resetActionInputs() {
+  if (!elements.actionInputs?.length) return;
+  elements.actionInputs.forEach((input) => {
+    input.value = '';
+  });
+}
+
+function showActionPanel(action) {
+  if (!elements.actionPanels?.length) return;
+  elements.actionPanels.forEach((panel) => {
+    panel.classList.toggle('is-active', panel.dataset.actionPanel === action);
+  });
+}
+
+function openActionModal(action) {
+  if (!elements.actionModal) return;
+  const item = getSelectedOwnedItem();
+  if (!item) return;
+  const config = ACTION_CONFIG[action] || ACTION_CONFIG.send;
+  if (elements.actionTitle) {
+    elements.actionTitle.dataset.i18n = config.title;
+    elements.actionTitle.textContent = t(config.title);
+  }
+  if (elements.actionSubtitle) {
+    elements.actionSubtitle.dataset.i18n = config.subtitle;
+    elements.actionSubtitle.textContent = t(config.subtitle);
+  }
+  if (elements.actionSubmit) {
+    elements.actionSubmit.dataset.i18n = config.button;
+    elements.actionSubmit.textContent = t(config.button);
+  }
+
+  const image = resolveImageUrl(item.image) || buildPlaceholder(item.number || item.id, item.name);
+  if (elements.actionGiftImage) {
+    elements.actionGiftImage.src = image;
+    elements.actionGiftImage.alt = item.name || 'Gift';
+  }
+  if (elements.actionGiftName) elements.actionGiftName.textContent = item.name || 'Gift';
+  if (elements.actionGiftNumber) {
+    const numberValue = item.number ?? item.id ?? '';
+    elements.actionGiftNumber.textContent = numberValue ? `#${numberValue}` : '#—';
+  }
+
+  state.activeOwnedAction = action;
+  resetActionInputs();
+  showActionPanel(action);
+  elements.actionModal.classList.add('open');
+  elements.actionModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeActionModal() {
+  if (!elements.actionModal) return;
+  elements.actionModal.classList.remove('open');
+  elements.actionModal.setAttribute('aria-hidden', 'true');
+  state.activeOwnedAction = null;
 }
 
 function setTab(tabName) {
@@ -1228,6 +1389,23 @@ function bindGiftModal() {
   }
 }
 
+function bindActionModal() {
+  if (!elements.actionModal) return;
+  elements.actionModal.querySelectorAll('[data-close="true"], [data-action-close="true"]').forEach((el) => {
+    el.addEventListener('click', () => {
+      triggerHaptic('light');
+      closeActionModal();
+    });
+  });
+  if (elements.actionSubmit) {
+    elements.actionSubmit.addEventListener('click', () => {
+      triggerHaptic('light');
+      closeActionModal();
+      showToast(t('action_done'));
+    });
+  }
+}
+
 function bindActions() {
   elements.actionButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -1237,6 +1415,10 @@ function bindActions() {
         return;
       }
       triggerHaptic('light');
+      if (state.hasChatAccess) {
+        openActionModal(btn.dataset.action || 'send');
+        return;
+      }
       openAuthModal();
     });
   });
@@ -1720,10 +1902,11 @@ async function loadData(skipBoot = shouldSkipBoot()) {
   dataLoaded = true;
   const minDelay = skipBoot ? wait(0) : wait(3000);
   const gifReady = preloadImage(`${API_BASE}${GIFT_POPUP_GIF}`);
-  const [marketRes, ownedRes, profileRes] = await Promise.all([
+  const [marketRes, ownedRes, profileRes, accessRes] = await Promise.all([
     fetchJson('/market/gifts', { items: DEFAULT_MARKET }),
     fetchJson('/market/owned', { items: DEFAULT_OWNED }),
-    fetchJson('/market/profile', DEFAULT_PROFILE),
+    fetchJson(getProfilePath(), DEFAULT_PROFILE),
+    fetchJson(getAccessPath(), { allowed: false }),
   ]);
 
   const baseMarket = Array.isArray(marketRes?.items) ? marketRes.items : DEFAULT_MARKET;
@@ -1736,6 +1919,7 @@ async function loadData(skipBoot = shouldSkipBoot()) {
   const ownedForUser = filterOwnedForCurrentUser(ownedItems);
   state.owned = dedupeToyBear(ownedForUser);
   state.profile = profileRes || DEFAULT_PROFILE;
+  state.hasChatAccess = Boolean(accessRes?.allowed);
 
   await Promise.all([minDelay, gifReady]);
   renderMarket();
@@ -1771,6 +1955,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindCodeInput();
   bindPasswordInput();
   bindGiftModal();
+  bindActionModal();
   bindActions();
   bindBalancePlus();
   bindAuthModal();
