@@ -1366,20 +1366,17 @@ function renderCartModal() {
 
       const price = document.createElement('div');
       price.className = 'cart-item-price';
-      const pricePill = document.createElement('div');
-      pricePill.className = 'cart-price-pill';
       const tonIcon = document.createElement('img');
       tonIcon.className = 'ton-icon';
       tonIcon.src = './img/image.png';
       tonIcon.alt = 'TON';
       const priceValue = document.createElement('span');
       priceValue.textContent = formatTon(item.price ?? 0);
-      pricePill.appendChild(tonIcon);
-      pricePill.appendChild(priceValue);
       const priceUnit = document.createElement('span');
       priceUnit.className = 'cart-price-unit';
       priceUnit.textContent = 'TON';
-      price.appendChild(pricePill);
+      price.appendChild(tonIcon);
+      price.appendChild(priceValue);
       price.appendChild(priceUnit);
 
       const remove = document.createElement('button');

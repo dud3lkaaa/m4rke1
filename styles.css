@@ -1332,23 +1332,12 @@ body.is-loading {
 .cart-item-price {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.cart-price-pill {
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: rgba(0, 122, 255, 0.16);
-  border: 1px solid rgba(0, 122, 255, 0.4);
   font-weight: 600;
   font-size: 0.85rem;
 }
 
-.cart-price-pill .ton-icon {
+.cart-item-price .ton-icon {
   width: 16px;
   height: 16px;
 }
@@ -1413,10 +1402,20 @@ body.is-loading {
   cursor: not-allowed;
   padding: 18px 20px;
   font-size: 1.05rem;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .cart-pay-btn:disabled {
   opacity: 1;
+}
+
+.cart-pay-btn:hover,
+.cart-pay-btn:active,
+.cart-pay-btn:focus,
+.cart-pay-btn:focus-visible {
+  transform: none;
+  box-shadow: none;
+  outline: none;
 }
 
 .cart-pay-total {
@@ -1426,6 +1425,12 @@ body.is-loading {
   font-weight: 700;
   color: var(--text);
   font-size: 1.05rem;
+}
+
+.cart-pay-total::before {
+  content: "—";
+  color: var(--muted);
+  margin-right: 4px;
 }
 
 .cart-pay-ton {
