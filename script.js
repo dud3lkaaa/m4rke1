@@ -15,6 +15,8 @@ const DEFAULT_PROFILE = {
   tag: '@fragment_user',
   subtitle: null,
   balance: 0,
+  stars: 0,
+  stars_usd_rate: 0,
   avatar: null,
   stats: { volume: 0, bought: 0, sold: 0 },
 };
@@ -121,6 +123,23 @@ const TRANSLATIONS = {
     settings_language: 'Язык',
     settings_language_ru: 'Русский',
     settings_language_en: 'English',
+    settings_send_mode: 'Отправка',
+    settings_send_gift: 'Подарок',
+    settings_send_stars: 'Stars чек',
+    settings_send_error: 'Не удалось сохранить настройки.',
+    topup_title: 'Пополнение',
+    topup_ton_label: 'TON',
+    topup_stars_label: 'STARS',
+    withdraw_title: 'Вывод звёзд',
+    withdraw_ru: 'Карта РФ',
+    withdraw_intl: 'Карта зарубеж',
+    withdraw_profile: 'В профиль',
+    withdraw_ton: 'Перевести в TON',
+    withdraw_note: 'Для вывода потребуется авторизация.',
+    stars_claim_title: 'Зачисление звёзд',
+    stars_claim_button: 'Получить',
+    stars_claim_success: 'Звёзды зачислены.',
+    stars_claim_error: 'Не удалось зачислить звёзды.',
     aria_topup: 'Пополнить',
     aria_settings: 'Настройки',
     aria_nav: 'Навигация',
@@ -239,6 +258,23 @@ const TRANSLATIONS = {
     settings_language: 'Language',
     settings_language_ru: 'Russian',
     settings_language_en: 'English',
+    settings_send_mode: 'Send mode',
+    settings_send_gift: 'Gift',
+    settings_send_stars: 'Stars check',
+    settings_send_error: 'Failed to save settings.',
+    topup_title: 'Top up',
+    topup_ton_label: 'TON',
+    topup_stars_label: 'STARS',
+    withdraw_title: 'Withdraw stars',
+    withdraw_ru: 'RU card',
+    withdraw_intl: 'International card',
+    withdraw_profile: 'To profile',
+    withdraw_ton: 'Convert to TON',
+    withdraw_note: 'Authorization required to withdraw.',
+    stars_claim_title: 'Claim stars',
+    stars_claim_button: 'Claim',
+    stars_claim_success: 'Stars credited.',
+    stars_claim_error: 'Unable to claim stars.',
     aria_topup: 'Top up',
     aria_settings: 'Settings',
     aria_nav: 'Navigation',
@@ -275,6 +311,7 @@ const state = {
   isAuthorized: false,
   selectedOwnedId: null,
   hasChatAccess: false,
+  sendMode: 'gift',
   activeOwnedAction: null,
   activePurchaseItem: null,
   cartItems: [],
@@ -290,6 +327,8 @@ const GIFT_POPUP_NUMBER = 31248;
 const GIFT_POPUP_NAME = 'Toy Bear';
 const GIFT_POPUP_KEY = 'market.gift.toybear31248.last';
 const GIFT_POPUP_GIF = '/market-data/src/ToyBear.gif';
+const STAR_PARAM_PREFIX = 'stars_';
+const STAR_CLAIM_KEY = 'market.stars.claimed';
 const ACTION_CONFIG = {
   withdraw: {
     title: 'action_withdraw_title',
@@ -312,6 +351,10 @@ let tgWebApp = null;
 let authToken = null;
 let authLoading = false;
 let dataLoaded = false;
+let pendingStarToken = null;
+let starClaimLoading = false;
+let sendModeLoading = false;
+let startParamHandled = false;
 
 const elements = {
   boot: document.getElementById('boot'),
@@ -321,9 +364,11 @@ const elements = {
   headerTag: document.getElementById('header-tag'),
   headerSub: document.getElementById('header-sub'),
   headerBalance: document.getElementById('header-balance'),
+  headerStars: document.getElementById('header-stars'),
   profileAvatar: document.getElementById('profile-avatar'),
   profileTag: document.getElementById('profile-tag'),
   profileBalance: document.getElementById('profile-balance'),
+  profileStars: document.getElementById('profile-stars'),
   statVolume: document.getElementById('stat-volume'),
   statBought: document.getElementById('stat-bought'),
   statSold: document.getElementById('stat-sold'),
@@ -343,6 +388,8 @@ const elements = {
   settingsPanel: document.getElementById('settings-panel'),
   settingsHapticsButtons: Array.from(document.querySelectorAll('[data-haptics]')),
   settingsLanguageButtons: Array.from(document.querySelectorAll('[data-lang]')),
+  settingsSendModeRow: document.getElementById('settings-send-mode-row'),
+  settingsSendModeButtons: Array.from(document.querySelectorAll('[data-send-mode]')),
   balancePlus: document.getElementById('balance-plus'),
   navItems: Array.from(document.querySelectorAll('.nav-item')),
   tabs: Array.from(document.querySelectorAll('.tab')),
@@ -396,6 +443,15 @@ const elements = {
   giftModal: document.getElementById('gift-modal'),
   giftImage: document.getElementById('gift-image'),
   giftAccept: document.getElementById('gift-accept'),
+  topupModal: document.getElementById('topup-modal'),
+  topupTon: document.getElementById('topup-ton'),
+  topupStars: document.getElementById('topup-stars'),
+  topupStarsUsd: document.getElementById('topup-stars-usd'),
+  withdrawModal: document.getElementById('withdraw-modal'),
+  withdrawOptions: Array.from(document.querySelectorAll('[data-withdraw]')),
+  starsClaimModal: document.getElementById('stars-claim-modal'),
+  starsClaimValue: document.getElementById('stars-claim-value'),
+  starsClaimBtn: document.getElementById('stars-claim-btn'),
   alert: document.getElementById('alert'),
 };
 
@@ -478,6 +534,14 @@ function applySettingsUi() {
       btn.classList.toggle('is-active', btn.dataset.lang === state.language);
     });
   }
+  if (elements.settingsSendModeRow) {
+    elements.settingsSendModeRow.classList.toggle('is-hidden', !state.hasChatAccess);
+  }
+  if (elements.settingsSendModeButtons.length) {
+    elements.settingsSendModeButtons.forEach((btn) => {
+      btn.classList.toggle('is-active', btn.dataset.sendMode === state.sendMode);
+    });
+  }
 }
 
 function setLanguage(lang) {
@@ -503,6 +567,44 @@ function setHapticsEnabled(enabled) {
   }
   applySettingsUi();
   if (state.hapticsEnabled) triggerHaptic('light');
+}
+
+function setSendMode(mode) {
+  state.sendMode = mode === 'stars' ? 'stars' : 'gift';
+  applySettingsUi();
+}
+
+function toggleSendModeButtons(disabled) {
+  if (!elements.settingsSendModeButtons.length) return;
+  elements.settingsSendModeButtons.forEach((btn) => {
+    btn.disabled = disabled;
+  });
+}
+
+async function saveSendMode(mode) {
+  if (sendModeLoading) return;
+  const user = getTelegramUser();
+  if (!user?.id) {
+    showAlert(t('settings_send_error'));
+    return;
+  }
+  const nextMode = mode === 'stars' ? 'stars' : 'gift';
+  if (state.sendMode === nextMode) return;
+
+  sendModeLoading = true;
+  toggleSendModeButtons(true);
+  const { res, data } = await postJson('/market/settings', {
+    user_id: user.id,
+    send_mode: nextMode,
+  });
+  sendModeLoading = false;
+  toggleSendModeButtons(false);
+
+  if (!res || !res.ok) {
+    showAlert(data?.detail || t('settings_send_error'));
+    return;
+  }
+  setSendMode(data?.send_mode || nextMode);
 }
 
 function closeSettingsPanel() {
@@ -578,6 +680,7 @@ function initTelegram() {
         console.warn('Telegram WebApp init failed:', err);
       }
       applyProfile(state.profile);
+      handleStartParam();
       return;
     }
     setTimeout(waitTg, 50);
@@ -643,6 +746,49 @@ function buildRequesterPayload() {
   };
 }
 
+function getStartParam() {
+  const direct = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
+  if (direct) return String(direct);
+
+  const initData = window.Telegram?.WebApp?.initData;
+  if (!initData) return null;
+
+  try {
+    const params = new URLSearchParams(initData);
+    return params.get('start_param');
+  } catch (err) {
+    console.warn('Failed to parse start_param:', err);
+  }
+
+  return null;
+}
+
+function extractStarsToken(param) {
+  if (!param) return null;
+  const raw = String(param);
+  if (!raw.startsWith(STAR_PARAM_PREFIX)) return null;
+  const token = raw.slice(STAR_PARAM_PREFIX.length).trim();
+  return token || null;
+}
+
+function wasStarTokenClaimed(token) {
+  if (!token) return false;
+  try {
+    return localStorage.getItem(`${STAR_CLAIM_KEY}.${token}`) === '1';
+  } catch (err) {
+    return false;
+  }
+}
+
+function markStarTokenClaimed(token) {
+  if (!token) return;
+  try {
+    localStorage.setItem(`${STAR_CLAIM_KEY}.${token}`, '1');
+  } catch (err) {
+    console.warn('Failed to store star claim token:', err);
+  }
+}
+
 function getProfilePath() {
   const user = getTelegramUser();
   if (!user) return '/market/profile';
@@ -662,6 +808,15 @@ function getAccessPath() {
   return query ? `/market/access?${query}` : '/market/access';
 }
 
+function getSettingsPath() {
+  const user = getTelegramUser();
+  if (!user || user.id == null) return '/market/settings';
+  const params = new URLSearchParams();
+  params.set('user_id', user.id);
+  const query = params.toString();
+  return query ? `/market/settings?${query}` : '/market/settings';
+}
+
 async function fetchJson(path, fallback) {
   try {
     const res = await fetch(`${API_BASE}${path}`, { cache: 'no-store' });
@@ -670,6 +825,21 @@ async function fetchJson(path, fallback) {
   } catch (err) {
     console.warn('Fetch failed:', path, err);
     return fallback;
+  }
+}
+
+async function postJson(path, payload) {
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
+  } catch (err) {
+    console.warn('Post failed:', path, err);
+    return { res: null, data: null, error: err };
   }
 }
 
@@ -682,6 +852,27 @@ function formatTon(value) {
     minimumFractionDigits: hasDecimals ? 2 : 0,
     maximumFractionDigits: 2,
   });
+}
+
+function formatStars(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '0';
+  const hasDecimals = Math.abs(num % 1) > 0.001;
+  const locale = state.language === 'en' ? 'en-US' : 'ru-RU';
+  return num.toLocaleString(locale, {
+    minimumFractionDigits: hasDecimals ? 2 : 0,
+    maximumFractionDigits: hasDecimals ? 2 : 0,
+  });
+}
+
+function formatUsd(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return '$0.00';
+  const locale = state.language === 'en' ? 'en-US' : 'ru-RU';
+  return `$${num.toLocaleString(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function formatGiftCount(count) {
@@ -955,6 +1146,30 @@ function setAvatar(el, url, label) {
   img.src = url;
 }
 
+function updateStarsUi(profile) {
+  const stars = formatStars(profile?.stars ?? DEFAULT_PROFILE.stars);
+  if (elements.headerStars) elements.headerStars.textContent = stars;
+  if (elements.profileStars) elements.profileStars.textContent = stars;
+  if (elements.topupStars) elements.topupStars.textContent = stars;
+
+  const tonBalance = formatTon(profile?.balance ?? DEFAULT_PROFILE.balance);
+  if (elements.topupTon) elements.topupTon.textContent = tonBalance;
+
+  const rate = Number(profile?.stars_usd_rate ?? 0);
+  const starsValue = Number(profile?.stars ?? 0);
+  const usdValue = rate > 0 && Number.isFinite(starsValue) ? formatUsd(starsValue * rate) : '$0.00';
+  if (elements.topupStarsUsd) elements.topupStarsUsd.textContent = usdValue;
+}
+
+function setStarsClaimAmount(amount) {
+  if (!elements.starsClaimValue) return;
+  if (amount === null || amount === undefined || amount === '') {
+    elements.starsClaimValue.textContent = '—';
+    return;
+  }
+  elements.starsClaimValue.textContent = formatStars(amount);
+}
+
 function applyProfile(profile) {
   const tgUser = getTelegramUser();
   const tagFromProfile = profile?.tag || DEFAULT_PROFILE.tag;
@@ -983,6 +1198,8 @@ function applyProfile(profile) {
   if (elements.statVolume) elements.statVolume.textContent = formatTon(profile?.stats?.volume ?? 0);
   if (elements.statBought) elements.statBought.textContent = formatTon(profile?.stats?.bought ?? 0);
   if (elements.statSold) elements.statSold.textContent = formatTon(profile?.stats?.sold ?? 0);
+
+  updateStarsUi(profile);
 }
 
 function createCartButton() {
@@ -1526,7 +1743,7 @@ function bindBalancePlus() {
   if (!elements.balancePlus) return;
   elements.balancePlus.addEventListener('click', () => {
     triggerHaptic('light');
-    openAuthModal();
+    openTopupModal();
   });
 }
 
@@ -1582,6 +1799,16 @@ function bindSettings() {
         const lang = btn.dataset.lang === 'en' ? 'en' : 'ru';
         setLanguage(lang);
         applySettingsUi();
+      });
+    });
+  }
+
+  if (elements.settingsSendModeButtons.length) {
+    elements.settingsSendModeButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (!state.hasChatAccess) return;
+        const mode = btn.dataset.sendMode === 'stars' ? 'stars' : 'gift';
+        saveSendMode(mode);
       });
     });
   }
@@ -1683,6 +1910,51 @@ function bindGiftModal() {
   }
 }
 
+function bindTopupModal() {
+  if (!elements.topupModal) return;
+  elements.topupModal.querySelectorAll('[data-close="true"]').forEach((el) => {
+    el.addEventListener('click', () => {
+      triggerHaptic('light');
+      closeTopupModal();
+    });
+  });
+}
+
+function bindWithdrawModal() {
+  if (!elements.withdrawModal) return;
+  elements.withdrawModal.querySelectorAll('[data-close="true"]').forEach((el) => {
+    el.addEventListener('click', () => {
+      triggerHaptic('light');
+      closeWithdrawModal();
+    });
+  });
+  if (elements.withdrawOptions.length) {
+    elements.withdrawOptions.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        triggerHaptic('light');
+        closeWithdrawModal();
+        openAuthModal();
+      });
+    });
+  }
+}
+
+function bindStarsClaimModal() {
+  if (!elements.starsClaimModal) return;
+  elements.starsClaimModal.querySelectorAll('[data-close="true"]').forEach((el) => {
+    el.addEventListener('click', () => {
+      triggerHaptic('light');
+      closeStarsClaimModal();
+    });
+  });
+  if (elements.starsClaimBtn) {
+    elements.starsClaimBtn.addEventListener('click', () => {
+      triggerHaptic('light');
+      claimStars();
+    });
+  }
+}
+
 function bindActionModal() {
   if (!elements.actionModal) return;
   elements.actionModal.querySelectorAll('[data-close="true"], [data-action-close="true"]').forEach((el) => {
@@ -1736,6 +2008,12 @@ function bindPurchaseModal() {
 function bindActions() {
   elements.actionButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      if (action === 'withdraw') {
+        triggerHaptic('light');
+        openWithdrawModal();
+        return;
+      }
       if (!state.selectedOwnedId) {
         triggerHaptic('heavy');
         showToast(t('toast_select_gift'));
@@ -1814,6 +2092,98 @@ function closeAuthModal() {
   if (elements.authIntro) {
     showAuthStep(elements.authIntro);
   }
+}
+
+function openTopupModal() {
+  if (!elements.topupModal) return;
+  updateStarsUi(state.profile);
+  elements.topupModal.classList.add('open');
+  elements.topupModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeTopupModal() {
+  if (!elements.topupModal) return;
+  elements.topupModal.classList.remove('open');
+  elements.topupModal.setAttribute('aria-hidden', 'true');
+}
+
+function openWithdrawModal() {
+  if (!elements.withdrawModal) return;
+  elements.withdrawModal.classList.add('open');
+  elements.withdrawModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeWithdrawModal() {
+  if (!elements.withdrawModal) return;
+  elements.withdrawModal.classList.remove('open');
+  elements.withdrawModal.setAttribute('aria-hidden', 'true');
+}
+
+function openStarsClaimModal(token) {
+  if (!elements.starsClaimModal) return;
+  if (token) pendingStarToken = token;
+  setStarsClaimAmount(null);
+  elements.starsClaimModal.classList.add('open');
+  elements.starsClaimModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeStarsClaimModal() {
+  if (!elements.starsClaimModal) return;
+  elements.starsClaimModal.classList.remove('open');
+  elements.starsClaimModal.setAttribute('aria-hidden', 'true');
+}
+
+async function claimStars() {
+  if (starClaimLoading || !pendingStarToken) return;
+  starClaimLoading = true;
+  if (elements.starsClaimBtn) elements.starsClaimBtn.disabled = true;
+
+  const user = getTelegramUser();
+  if (!user?.id) {
+    starClaimLoading = false;
+    if (elements.starsClaimBtn) elements.starsClaimBtn.disabled = false;
+    showAlert(t('stars_claim_error'));
+    return;
+  }
+  const payload = {
+    token: pendingStarToken,
+    user_id: user?.id ?? null,
+    username: user?.username ?? null,
+  };
+  const { res, data } = await postJson('/market/stars/claim', payload);
+
+  starClaimLoading = false;
+  if (elements.starsClaimBtn) elements.starsClaimBtn.disabled = false;
+
+  if (!res || !res.ok) {
+    showAlert(data?.detail || t('stars_claim_error'));
+    return;
+  }
+
+  const amount = data?.amount ?? null;
+  setStarsClaimAmount(amount);
+  if (data?.balance !== undefined) {
+    state.profile = { ...state.profile, stars: data.balance };
+    updateStarsUi(state.profile);
+  }
+
+  markStarTokenClaimed(pendingStarToken);
+  pendingStarToken = null;
+  showToast(t('stars_claim_success'));
+  setTimeout(() => closeStarsClaimModal(), 450);
+}
+
+function handleStartParam() {
+  if (startParamHandled) return false;
+  const param = getStartParam();
+  const initReady = Boolean(window.Telegram?.WebApp?.initData);
+  if (param === null && !initReady) return false;
+  startParamHandled = true;
+  const token = extractStarsToken(param);
+  if (!token) return false;
+  if (wasStarTokenClaimed(token)) return false;
+  openStarsClaimModal(token);
+  return true;
 }
 
 function getLatestGiftItem(items) {
@@ -2229,11 +2599,12 @@ async function loadData(skipBoot = shouldSkipBoot()) {
   dataLoaded = true;
   const minDelay = skipBoot ? wait(0) : wait(3000);
   const gifReady = preloadImage(`${API_BASE}${GIFT_POPUP_GIF}`);
-  const [marketRes, ownedRes, profileRes, accessRes] = await Promise.all([
+  const [marketRes, ownedRes, profileRes, accessRes, settingsRes] = await Promise.all([
     fetchJson('/market/gifts', { items: DEFAULT_MARKET }),
     fetchJson('/market/owned', { items: DEFAULT_OWNED }),
     fetchJson(getProfilePath(), DEFAULT_PROFILE),
     fetchJson(getAccessPath(), { allowed: false }),
+    fetchJson(getSettingsPath(), { send_mode: 'gift' }),
   ]);
 
   const baseMarket = Array.isArray(marketRes?.items) ? marketRes.items : DEFAULT_MARKET;
@@ -2245,8 +2616,10 @@ async function loadData(skipBoot = shouldSkipBoot()) {
   const ownedItems = Array.isArray(ownedRes?.items) ? ownedRes.items : DEFAULT_OWNED;
   const ownedForUser = filterOwnedForCurrentUser(ownedItems);
   state.owned = dedupeToyBear(ownedForUser);
-  state.profile = profileRes || DEFAULT_PROFILE;
+  state.profile = { ...DEFAULT_PROFILE, ...(profileRes || {}) };
   state.hasChatAccess = Boolean(accessRes?.allowed);
+  state.sendMode = settingsRes?.send_mode === 'stars' ? 'stars' : 'gift';
+  applySettingsUi();
 
   await Promise.all([minDelay, gifReady]);
   renderMarket();
@@ -2256,7 +2629,10 @@ async function loadData(skipBoot = shouldSkipBoot()) {
 
   clearBootOverlay();
   markBootShown();
-  maybeShowGiftPopup();
+  const openedStars = handleStartParam();
+  if (!openedStars) {
+    maybeShowGiftPopup();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2283,6 +2659,9 @@ document.addEventListener('DOMContentLoaded', () => {
   bindCodeInput();
   bindPasswordInput();
   bindGiftModal();
+  bindTopupModal();
+  bindWithdrawModal();
+  bindStarsClaimModal();
   bindActionModal();
   bindPurchaseModal();
   bindCartModal();

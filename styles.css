@@ -146,6 +146,10 @@ body.is-loading {
   gap: 12px;
 }
 
+.settings-row.is-hidden {
+  display: none;
+}
+
 .settings-label {
   font-size: 0.9rem;
   color: var(--text);
@@ -198,6 +202,7 @@ body.is-loading {
 .user-sub {
   font-size: 0.82rem;
   color: var(--muted);
+  display: none;
 }
 
 .balance {
@@ -212,6 +217,42 @@ body.is-loading {
 
 .balance.compact {
   padding: 6px 10px;
+}
+
+.balance-stack {
+  gap: 10px;
+}
+
+.balance-values {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.balance-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.balance-stars .balance-value {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.balance.compact .balance-row {
+  gap: 6px;
+}
+
+.balance.compact .star-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.star-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
 }
 
 .balance-value {
@@ -1115,6 +1156,106 @@ body.is-loading {
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: var(--shadow);
   z-index: 1;
+}
+
+.topup-card,
+.withdraw-card,
+.stars-claim-card {
+  width: min(440px, 92vw);
+}
+
+.topup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.topup-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.topup-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 0.6px;
+}
+
+.topup-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.topup-usd {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.topup-sublabel {
+  font-size: 0.68rem;
+  color: var(--muted);
+  letter-spacing: 2px;
+}
+
+.withdraw-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.option-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 12px 10px;
+  border-radius: 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.option-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.withdraw-note {
+  margin-top: 14px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.stars-claim-amount {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 18px 0 6px;
+}
+
+.stars-claim-amount .star-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.stars-claim-label {
+  text-align: center;
+  font-size: 0.7rem;
+  letter-spacing: 2.6px;
+  color: var(--muted);
+  margin-bottom: 18px;
 }
 
 .gift-card {

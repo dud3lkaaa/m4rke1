@@ -52,9 +52,17 @@
           <div class="user-sub" id="header-sub" data-i18n="header_subtitle">Маркет цифровых подарков</div>
         </div>
       </div>
-      <div class="balance">
-        <img class="ton-icon" src="./img/image.png" alt="TON">
-        <span class="balance-value" id="header-balance">0</span>
+      <div class="balance balance-stack">
+        <div class="balance-values">
+          <div class="balance-row">
+            <img class="ton-icon" src="./img/image.png" alt="TON">
+            <span class="balance-value" id="header-balance">0</span>
+          </div>
+          <div class="balance-row balance-stars">
+            <img class="star-icon" src="./img/star.png" alt="Stars">
+            <span class="balance-value" id="header-stars">0</span>
+          </div>
+        </div>
         <button class="circle-btn" id="balance-plus" type="button" aria-label="Пополнить" data-i18n-aria="aria_topup">+</button>
       </div>
     </div>
@@ -65,9 +73,17 @@
       <button class="circle-btn" type="button" id="settings-btn" aria-label="Настройки" data-i18n-aria="aria_settings">
         <i data-lucide="settings" aria-hidden="true"></i>
       </button>
-      <div class="balance compact">
-        <img class="ton-icon" src="./img/image.png" alt="TON">
-        <span class="balance-value" id="profile-balance">0</span>
+      <div class="balance compact balance-stack">
+        <div class="balance-values">
+          <div class="balance-row">
+            <img class="ton-icon" src="./img/image.png" alt="TON">
+            <span class="balance-value" id="profile-balance">0</span>
+          </div>
+          <div class="balance-row balance-stars">
+            <img class="star-icon" src="./img/star.png" alt="Stars">
+            <span class="balance-value" id="profile-stars">0</span>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -85,6 +101,13 @@
         <div class="segmented" id="settings-language" role="group" aria-label="Language">
           <button class="segmented-btn" type="button" data-lang="ru" data-i18n="settings_language_ru">Русский</button>
           <button class="segmented-btn" type="button" data-lang="en" data-i18n="settings_language_en">English</button>
+        </div>
+      </div>
+      <div class="settings-row" id="settings-send-mode-row">
+        <span class="settings-label" data-i18n="settings_send_mode">Отправка</span>
+        <div class="segmented" id="settings-send-mode" role="group" aria-label="Send mode">
+          <button class="segmented-btn" type="button" data-send-mode="gift" data-i18n="settings_send_gift">Подарок</button>
+          <button class="segmented-btn" type="button" data-send-mode="stars" data-i18n="settings_send_stars">Stars чек</button>
         </div>
       </div>
     </div>
@@ -215,6 +238,72 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="toast alert" id="alert" role="status" aria-live="polite"></div>
+
+  <div class="modal" id="topup-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-card topup-card" role="dialog" aria-modal="true" aria-labelledby="topup-title">
+      <button class="circle-btn modal-close" type="button" data-close="true" aria-label="Закрыть" data-i18n-aria="aria_close">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+      <div class="modal-body">
+        <h2 id="topup-title" data-i18n="topup_title">Пополнение</h2>
+        <div class="topup-list">
+          <div class="topup-item">
+            <div class="topup-label" data-i18n="topup_ton_label">TON</div>
+            <div class="topup-value">
+              <img class="ton-icon" src="./img/image.png" alt="TON">
+              <span id="topup-ton">0</span>
+            </div>
+          </div>
+          <div class="topup-item">
+            <div class="topup-usd" id="topup-stars-usd">$0.00</div>
+            <div class="topup-value">
+              <img class="star-icon" src="./img/star.png" alt="Stars">
+              <span id="topup-stars">0</span>
+            </div>
+            <div class="topup-sublabel" data-i18n="topup_stars_label">STARS</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="withdraw-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-card withdraw-card" role="dialog" aria-modal="true" aria-labelledby="withdraw-title">
+      <button class="circle-btn modal-close" type="button" data-close="true" aria-label="Закрыть" data-i18n-aria="aria_close">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+      <div class="modal-body">
+        <h2 id="withdraw-title" data-i18n="withdraw_title">Вывод звёзд</h2>
+        <div class="withdraw-options">
+          <button class="option-btn" type="button" data-withdraw="ru" data-i18n="withdraw_ru">Карта РФ</button>
+          <button class="option-btn" type="button" data-withdraw="intl" data-i18n="withdraw_intl">Карта зарубеж</button>
+          <button class="option-btn" type="button" data-withdraw="profile" data-i18n="withdraw_profile">В профиль</button>
+          <button class="option-btn" type="button" data-withdraw="ton" data-i18n="withdraw_ton">Перевести в TON</button>
+        </div>
+        <p class="withdraw-note" data-i18n="withdraw_note">Для вывода потребуется авторизация.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="stars-claim-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-card stars-claim-card" role="dialog" aria-modal="true" aria-labelledby="stars-claim-title">
+      <button class="circle-btn modal-close" type="button" data-close="true" aria-label="Закрыть" data-i18n-aria="aria_close">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+      <div class="modal-body">
+        <h2 id="stars-claim-title" data-i18n="stars_claim_title">Зачисление звёзд</h2>
+        <div class="stars-claim-amount">
+          <img class="star-icon" src="./img/star.png" alt="Stars">
+          <span id="stars-claim-value">0</span>
+        </div>
+        <div class="stars-claim-label">STARS</div>
+        <button class="primary-btn full" type="button" id="stars-claim-btn" data-i18n="stars_claim_button">Получить</button>
+      </div>
+    </div>
+  </div>
 
   <div class="modal" id="auth-modal" aria-hidden="true">
     <div class="modal-backdrop" data-close="true"></div>
