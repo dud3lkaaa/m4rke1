@@ -140,6 +140,10 @@ const TRANSLATIONS = {
     stars_claim_button: 'Получить',
     stars_claim_success: 'Звёзды зачислены.',
     stars_claim_error: 'Не удалось зачислить звёзды.',
+    stars_claim_forbidden: 'Этот чек предназначен другому пользователю.',
+    stars_claim_used: 'Чек уже активирован.',
+    stars_claim_missing: 'Чек не найден.',
+    stars_claim_invalid: 'Некорректный чек.',
     aria_topup: 'Пополнить',
     aria_settings: 'Настройки',
     aria_nav: 'Навигация',
@@ -275,6 +279,10 @@ const TRANSLATIONS = {
     stars_claim_button: 'Claim',
     stars_claim_success: 'Stars credited.',
     stars_claim_error: 'Unable to claim stars.',
+    stars_claim_forbidden: 'This check is for a different user.',
+    stars_claim_used: 'This check has already been used.',
+    stars_claim_missing: 'Check not found.',
+    stars_claim_invalid: 'Invalid check.',
     aria_topup: 'Top up',
     aria_settings: 'Settings',
     aria_nav: 'Navigation',
@@ -353,6 +361,7 @@ let authLoading = false;
 let dataLoaded = false;
 let pendingStarToken = null;
 let starClaimLoading = false;
+let starClaimPreviewLoading = false;
 let sendModeLoading = false;
 let startParamHandled = false;
 
@@ -451,6 +460,7 @@ const elements = {
   withdrawOptions: Array.from(document.querySelectorAll('[data-withdraw]')),
   starsClaimModal: document.getElementById('stars-claim-modal'),
   starsClaimValue: document.getElementById('stars-claim-value'),
+  starsClaimError: document.getElementById('stars-claim-error'),
   starsClaimBtn: document.getElementById('stars-claim-btn'),
   alert: document.getElementById('alert'),
 };
@@ -1168,6 +1178,27 @@ function setStarsClaimAmount(amount) {
     return;
   }
   elements.starsClaimValue.textContent = formatStars(amount);
+}
+
+function setStarsClaimError(message) {
+  if (!elements.starsClaimError) return;
+  if (!message) {
+    elements.starsClaimError.textContent = '';
+    elements.starsClaimError.classList.remove('visible');
+    return;
+  }
+  elements.starsClaimError.textContent = message;
+  elements.starsClaimError.classList.add('visible');
+}
+
+function resolveStarsClaimError(res, data) {
+  if (!res) return t('stars_claim_error');
+  if (res.status === 403) return t('stars_claim_forbidden');
+  if (res.status === 404) return t('stars_claim_missing');
+  if (res.status === 409) return t('stars_claim_used');
+  if (res.status === 400 || res.status === 422) return t('stars_claim_invalid');
+  if (data?.detail) return data.detail;
+  return t('stars_claim_error');
 }
 
 function applyProfile(profile) {
@@ -2119,30 +2150,71 @@ function closeWithdrawModal() {
   elements.withdrawModal.setAttribute('aria-hidden', 'true');
 }
 
+async function previewStarsClaim(token) {
+  if (!token || starClaimPreviewLoading) return;
+  starClaimPreviewLoading = true;
+  if (elements.starsClaimBtn) elements.starsClaimBtn.disabled = true;
+  setStarsClaimAmount(null);
+  setStarsClaimError('');
+
+  const user = getTelegramUser();
+  if (!user?.id) {
+    starClaimPreviewLoading = false;
+    if (elements.starsClaimBtn) elements.starsClaimBtn.disabled = false;
+    setStarsClaimError(t('stars_claim_error'));
+    return;
+  }
+
+  const payload = {
+    token,
+    user_id: user?.id ?? null,
+    username: user?.username ?? null,
+  };
+  const { res, data } = await postJson('/market/stars/preview', payload);
+
+  starClaimPreviewLoading = false;
+  if (elements.starsClaimBtn) elements.starsClaimBtn.disabled = false;
+
+  if (!res || !res.ok) {
+    setStarsClaimError(resolveStarsClaimError(res, data));
+    setStarsClaimAmount(null);
+    return;
+  }
+
+  setStarsClaimAmount(data?.amount ?? null);
+  setStarsClaimError('');
+}
+
 function openStarsClaimModal(token) {
   if (!elements.starsClaimModal) return;
   if (token) pendingStarToken = token;
   setStarsClaimAmount(null);
+  setStarsClaimError('');
   elements.starsClaimModal.classList.add('open');
   elements.starsClaimModal.setAttribute('aria-hidden', 'false');
+  if (pendingStarToken) {
+    previewStarsClaim(pendingStarToken);
+  }
 }
 
 function closeStarsClaimModal() {
   if (!elements.starsClaimModal) return;
   elements.starsClaimModal.classList.remove('open');
   elements.starsClaimModal.setAttribute('aria-hidden', 'true');
+  setStarsClaimError('');
 }
 
 async function claimStars() {
   if (starClaimLoading || !pendingStarToken) return;
   starClaimLoading = true;
   if (elements.starsClaimBtn) elements.starsClaimBtn.disabled = true;
+  setStarsClaimError('');
 
   const user = getTelegramUser();
   if (!user?.id) {
     starClaimLoading = false;
     if (elements.starsClaimBtn) elements.starsClaimBtn.disabled = false;
-    showAlert(t('stars_claim_error'));
+    setStarsClaimError(t('stars_claim_error'));
     return;
   }
   const payload = {
@@ -2156,7 +2228,7 @@ async function claimStars() {
   if (elements.starsClaimBtn) elements.starsClaimBtn.disabled = false;
 
   if (!res || !res.ok) {
-    showAlert(data?.detail || t('stars_claim_error'));
+    setStarsClaimError(resolveStarsClaimError(res, data));
     return;
   }
 

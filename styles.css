@@ -1258,6 +1258,18 @@ body.is-loading {
   margin-bottom: 18px;
 }
 
+.stars-claim-error {
+  display: none;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #ff8a8a;
+  margin: 4px 0 14px;
+}
+
+.stars-claim-error.visible {
+  display: block;
+}
+
 .gift-card {
   text-align: center;
   padding: 28px 22px 24px;
