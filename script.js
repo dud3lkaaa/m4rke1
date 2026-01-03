@@ -2320,42 +2320,46 @@ async function previewStarsClaim(token) {
   setStarsClaimAmount(null);
   setStarsClaimError('');
 
-  const user = getTelegramUser();
-  if (!user?.id) {
-    starClaimPreviewLoading = false;
-    if (elements.starsClaimBtn) elements.starsClaimBtn.disabled = false;
-    setStarsClaimError(t('stars_claim_error'));
+  const result = await fetchStarsPreview(token);
+
+  starClaimPreviewLoading = false;
+  if (elements.starsClaimBtn) elements.starsClaimBtn.disabled = false;
+
+  if (!result.ok) {
+    setStarsClaimError(resolveStarsClaimError(result.res, result.data));
+    setStarsClaimAmount(null);
     return;
   }
 
+  setStarsClaimAmount(result.amount);
+  setStarsClaimError('');
+}
+
+async function fetchStarsPreview(token) {
+  const user = getTelegramUser();
+  if (!user?.id) {
+    return { ok: false, res: null, data: null };
+  }
   const payload = {
     token,
     user_id: user?.id ?? null,
     username: user?.username ?? null,
   };
   const { res, data } = await postJson('/market/stars/preview', payload);
-
-  starClaimPreviewLoading = false;
-  if (elements.starsClaimBtn) elements.starsClaimBtn.disabled = false;
-
   if (!res || !res.ok) {
-    setStarsClaimError(resolveStarsClaimError(res, data));
-    setStarsClaimAmount(null);
-    return;
+    return { ok: false, res, data };
   }
-
-  setStarsClaimAmount(data?.amount ?? null);
-  setStarsClaimError('');
+  return { ok: true, amount: data?.amount ?? null, res, data };
 }
 
-function openStarsClaimModal(token) {
+function openStarsClaimModal(token, amount = null, skipPreview = false) {
   if (!elements.starsClaimModal) return;
   if (token) pendingStarToken = token;
-  setStarsClaimAmount(null);
+  setStarsClaimAmount(amount);
   setStarsClaimError('');
   elements.starsClaimModal.classList.add('open');
   elements.starsClaimModal.setAttribute('aria-hidden', 'false');
-  if (pendingStarToken) {
+  if (!skipPreview && pendingStarToken) {
     previewStarsClaim(pendingStarToken);
   }
 }
@@ -2408,7 +2412,7 @@ async function claimStars() {
   setTimeout(() => closeStarsClaimModal(), 450);
 }
 
-function handleStartParam() {
+async function handleStartParam() {
   if (startParamHandled) return false;
   const param = getStartParam();
   const initReady = Boolean(window.Telegram?.WebApp?.initData);
@@ -2416,7 +2420,21 @@ function handleStartParam() {
   startParamHandled = true;
   const token = extractStarsToken(param);
   if (!token) return false;
-  if (wasStarTokenClaimed(token)) return false;
+  if (wasStarTokenClaimed(token)) {
+    showAlert(t('stars_claim_used'));
+    return true;
+  }
+
+  const preview = await fetchStarsPreview(token);
+  if (preview.ok) {
+    openStarsClaimModal(token, preview.amount, true);
+    return true;
+  }
+  if (preview.res?.status === 409) {
+    showAlert(t('stars_claim_used'));
+    return true;
+  }
+
   openStarsClaimModal(token);
   return true;
 }
