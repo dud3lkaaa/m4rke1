@@ -155,6 +155,33 @@ body.is-loading {
   color: var(--text);
 }
 
+.settings-admin {
+  align-items: flex-start;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.admin-chip {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.admin-chip:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .segmented {
   display: inline-flex;
   align-items: center;
@@ -1432,6 +1459,10 @@ body.is-loading {
 .withdraw-card,
 .stars-claim-card {
   width: min(440px, 92vw);
+}
+
+.admin-card {
+  width: min(420px, 92vw);
 }
 
 .topup-list {

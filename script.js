@@ -143,6 +143,22 @@ const TRANSLATIONS = {
     settings_send_gift: 'Подарок',
     settings_send_stars: 'Stars чек',
     settings_send_error: 'Не удалось сохранить настройки.',
+    settings_admin_title: 'Админ',
+    settings_admin_joined: 'Дата регистрации',
+    settings_admin_stars: 'Баланс звёзд',
+    settings_admin_balance: 'Баланс TON',
+    admin_modal_title: 'Админ настройки',
+    admin_modal_subtitle: 'Введите новое значение',
+    admin_modal_label: 'Значение',
+    admin_modal_save: 'Сохранить',
+    admin_modal_saved: 'Изменения сохранены.',
+    admin_modal_error: 'Не удалось сохранить.',
+    admin_modal_joined_title: 'Дата регистрации',
+    admin_modal_joined_label: 'Новая дата',
+    admin_modal_stars_title: 'Баланс звёзд',
+    admin_modal_stars_label: 'Новый баланс',
+    admin_modal_balance_title: 'Баланс TON',
+    admin_modal_balance_label: 'Новый баланс',
     topup_title: 'Пополнение',
     topup_ton_label: 'TON',
     topup_stars_label: 'STARS',
@@ -313,6 +329,22 @@ const TRANSLATIONS = {
     settings_send_gift: 'Gift',
     settings_send_stars: 'Stars check',
     settings_send_error: 'Failed to save settings.',
+    settings_admin_title: 'Admin',
+    settings_admin_joined: 'Joined date',
+    settings_admin_stars: 'Stars balance',
+    settings_admin_balance: 'TON balance',
+    admin_modal_title: 'Admin settings',
+    admin_modal_subtitle: 'Enter a new value',
+    admin_modal_label: 'Value',
+    admin_modal_save: 'Save',
+    admin_modal_saved: 'Changes saved.',
+    admin_modal_error: 'Unable to save.',
+    admin_modal_joined_title: 'Joined date',
+    admin_modal_joined_label: 'New date',
+    admin_modal_stars_title: 'Stars balance',
+    admin_modal_stars_label: 'New balance',
+    admin_modal_balance_title: 'TON balance',
+    admin_modal_balance_label: 'New balance',
     topup_title: 'Top up',
     topup_ton_label: 'TON',
     topup_stars_label: 'STARS',
@@ -431,6 +463,7 @@ let selectedPremiumUsd = null;
 let sendModeLoading = false;
 let startParamHandled = false;
 let starsPanelOpen = false;
+let activeAdminAction = null;
 
 const elements = {
   boot: document.getElementById('boot'),
@@ -477,6 +510,8 @@ const elements = {
   settingsLanguageButtons: Array.from(document.querySelectorAll('[data-lang]')),
   settingsSendModeRow: document.getElementById('settings-send-mode-row'),
   settingsSendModeButtons: Array.from(document.querySelectorAll('[data-send-mode]')),
+  settingsAdminRow: document.getElementById('settings-admin-row'),
+  settingsAdminButtons: Array.from(document.querySelectorAll('[data-admin-action]')),
   balancePlus: document.getElementById('balance-plus'),
   navItems: Array.from(document.querySelectorAll('.nav-item')),
   tabs: Array.from(document.querySelectorAll('.tab')),
@@ -543,6 +578,12 @@ const elements = {
   starsClaimValue: document.getElementById('stars-claim-value'),
   starsClaimError: document.getElementById('stars-claim-error'),
   starsClaimBtn: document.getElementById('stars-claim-btn'),
+  adminModal: document.getElementById('admin-modal'),
+  adminTitle: document.getElementById('admin-title'),
+  adminSubtitle: document.getElementById('admin-subtitle'),
+  adminLabel: document.getElementById('admin-label'),
+  adminInput: document.getElementById('admin-input'),
+  adminSubmit: document.getElementById('admin-submit'),
   alert: document.getElementById('alert'),
 };
 
@@ -628,6 +669,9 @@ function applySettingsUi() {
   if (elements.settingsSendModeRow) {
     elements.settingsSendModeRow.classList.toggle('is-hidden', !state.hasChatAccess);
   }
+  if (elements.settingsAdminRow) {
+    elements.settingsAdminRow.classList.toggle('is-hidden', !state.hasChatAccess);
+  }
   if (elements.settingsSendModeButtons.length) {
     elements.settingsSendModeButtons.forEach((btn) => {
       btn.classList.toggle('is-active', btn.dataset.sendMode === state.sendMode);
@@ -696,6 +740,128 @@ async function saveSendMode(mode) {
     return;
   }
   setSendMode(data?.send_mode || nextMode);
+}
+
+const ADMIN_ACTIONS = {
+  joined: {
+    titleKey: 'admin_modal_joined_title',
+    labelKey: 'admin_modal_joined_label',
+    type: 'date',
+    inputMode: 'none',
+  },
+  stars: {
+    titleKey: 'admin_modal_stars_title',
+    labelKey: 'admin_modal_stars_label',
+    type: 'number',
+    inputMode: 'numeric',
+  },
+  balance: {
+    titleKey: 'admin_modal_balance_title',
+    labelKey: 'admin_modal_balance_label',
+    type: 'number',
+    inputMode: 'decimal',
+  },
+};
+
+function formatDateInput(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0, 10);
+}
+
+function openAdminModal(action) {
+  if (!elements.adminModal || !elements.adminInput) return;
+  const config = ADMIN_ACTIONS[action];
+  if (!config) return;
+  activeAdminAction = action;
+
+  if (elements.adminTitle) elements.adminTitle.textContent = t(config.titleKey);
+  if (elements.adminSubtitle) elements.adminSubtitle.textContent = t('admin_modal_subtitle');
+  if (elements.adminLabel) elements.adminLabel.textContent = t(config.labelKey);
+
+  elements.adminInput.type = config.type;
+  elements.adminInput.inputMode = config.inputMode || 'text';
+  elements.adminInput.step = action === 'balance' ? '0.01' : '1';
+  elements.adminInput.min = '0';
+
+  const user = getTelegramUser();
+  if (action === 'joined') {
+    const joinedDate = resolveJoinedDate(state.profile, user?.id);
+    elements.adminInput.value = formatDateInput(joinedDate);
+  } else if (action === 'stars') {
+    elements.adminInput.value = String(Math.round(Number(state.profile?.stars || 0)));
+  } else if (action === 'balance') {
+    elements.adminInput.value = String(state.profile?.balance ?? 0);
+  }
+
+  elements.adminModal.classList.add('open');
+  elements.adminModal.setAttribute('aria-hidden', 'false');
+  setTimeout(() => elements.adminInput?.focus(), 50);
+}
+
+function closeAdminModal() {
+  if (!elements.adminModal) return;
+  elements.adminModal.classList.remove('open');
+  elements.adminModal.setAttribute('aria-hidden', 'true');
+  activeAdminAction = null;
+  if (elements.adminInput) elements.adminInput.value = '';
+}
+
+function parseAdminNumber(raw) {
+  const cleaned = String(raw || '').trim().replace(',', '.');
+  if (!cleaned) return null;
+  const value = Number(cleaned);
+  if (!Number.isFinite(value)) return null;
+  return value;
+}
+
+async function saveAdminValue() {
+  if (!activeAdminAction || !elements.adminInput) return;
+  const user = getTelegramUser();
+  if (!user?.id) {
+    showAlert(t('admin_modal_error'));
+    return;
+  }
+
+  const payload = { user_id: user.id };
+  const rawValue = elements.adminInput.value;
+
+  if (activeAdminAction === 'joined') {
+    if (!rawValue) {
+      showAlert(t('admin_modal_error'));
+      return;
+    }
+    payload.joined_at = rawValue;
+  } else if (activeAdminAction === 'stars') {
+    const value = parseAdminNumber(rawValue);
+    if (value == null) {
+      showAlert(t('admin_modal_error'));
+      return;
+    }
+    payload.stars = Math.max(0, Math.round(value));
+  } else if (activeAdminAction === 'balance') {
+    const value = parseAdminNumber(rawValue);
+    if (value == null) {
+      showAlert(t('admin_modal_error'));
+      return;
+    }
+    payload.balance = Math.max(0, Number(value.toFixed(2)));
+  }
+
+  const { res, data } = await postJson('/market/admin/profile', payload);
+  if (!res || !res.ok) {
+    showAlert(data?.detail || t('admin_modal_error'));
+    return;
+  }
+  if (data?.profile) {
+    state.profile = { ...state.profile, ...data.profile };
+    applyProfile(state.profile);
+  }
+  if (activeAdminAction === 'joined' && payload.joined_at) {
+    const parsed = new Date(payload.joined_at);
+    setJoinedDateStorage(user.id, parsed);
+  }
+  closeAdminModal();
+  showToast(t('admin_modal_saved'));
 }
 
 function closeSettingsPanel() {
@@ -1260,6 +1426,27 @@ function getOrSetJoinedDate(userId) {
   }
 }
 
+function setJoinedDateStorage(userId, date) {
+  if (!userId || !(date instanceof Date) || Number.isNaN(date.getTime())) return;
+  try {
+    localStorage.setItem(getJoinedKey(userId), date.toISOString());
+  } catch (err) {
+    console.warn('Failed to store joined date:', err);
+  }
+}
+
+function resolveJoinedDate(profile, userId) {
+  const joinedRaw = profile?.joined_at;
+  if (joinedRaw) {
+    const parsed = new Date(joinedRaw);
+    if (!Number.isNaN(parsed.getTime())) {
+      setJoinedDateStorage(userId, parsed);
+      return parsed;
+    }
+  }
+  return getOrSetJoinedDate(userId);
+}
+
 function formatJoinedDate(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '—';
   const locale = state.language === 'en' ? 'en-US' : 'ru-RU';
@@ -1386,7 +1573,7 @@ function applyProfile(profile) {
   if (elements.profileTag) elements.profileTag.textContent = tag;
   if (elements.profileName) elements.profileName.textContent = displayName;
   if (elements.profileJoined) {
-    const joinedDate = getOrSetJoinedDate(tgUser?.id);
+    const joinedDate = resolveJoinedDate(profile, tgUser?.id);
     elements.profileJoined.textContent = formatJoinedDate(joinedDate);
   }
   updateProfileAuthStatus(state.hasChatAccess);
@@ -2030,6 +2217,39 @@ function bindSettings() {
         const mode = btn.dataset.sendMode === 'stars' ? 'stars' : 'gift';
         saveSendMode(mode);
       });
+    });
+  }
+
+  if (elements.settingsAdminButtons.length) {
+    elements.settingsAdminButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (!state.hasChatAccess) return;
+        triggerHaptic('light');
+        const action = btn.dataset.adminAction;
+        openAdminModal(action);
+      });
+    });
+  }
+
+  if (elements.adminModal) {
+    elements.adminModal.querySelectorAll('[data-close="true"]').forEach((el) => {
+      el.addEventListener('click', () => {
+        triggerHaptic('light');
+        closeAdminModal();
+      });
+    });
+    elements.adminModal.addEventListener('click', (event) => {
+      if (event.target === elements.adminModal || event.target.classList.contains('modal-backdrop')) {
+        triggerHaptic('light');
+        closeAdminModal();
+      }
+    });
+  }
+
+  if (elements.adminSubmit) {
+    elements.adminSubmit.addEventListener('click', () => {
+      triggerHaptic('light');
+      saveAdminValue();
     });
   }
 }

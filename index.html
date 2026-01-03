@@ -110,6 +110,14 @@
           <button class="segmented-btn" type="button" data-send-mode="stars" data-i18n="settings_send_stars">Stars чек</button>
         </div>
       </div>
+      <div class="settings-row settings-admin" id="settings-admin-row">
+        <span class="settings-label" data-i18n="settings_admin_title">Админ</span>
+        <div class="admin-actions">
+          <button class="admin-chip" type="button" data-admin-action="joined" data-i18n="settings_admin_joined">Дата регистрации</button>
+          <button class="admin-chip" type="button" data-admin-action="stars" data-i18n="settings_admin_stars">Баланс звёзд</button>
+          <button class="admin-chip" type="button" data-admin-action="balance" data-i18n="settings_admin_balance">Баланс TON</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -342,6 +350,24 @@
     </div>
   </div>
 
+  <div class="modal" id="admin-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-card admin-card" role="dialog" aria-modal="true" aria-labelledby="admin-title">
+      <button class="circle-btn modal-close" type="button" data-close="true" aria-label="Закрыть" data-i18n-aria="aria_close">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+      <div class="modal-body">
+        <h2 id="admin-title" data-i18n="admin_modal_title">Админ настройки</h2>
+        <p id="admin-subtitle" data-i18n="admin_modal_subtitle">Введите новое значение</p>
+        <label class="field">
+          <span id="admin-label" data-i18n="admin_modal_label">Значение</span>
+          <input id="admin-input" type="text" inputmode="numeric" placeholder="—">
+        </label>
+        <button class="primary-btn full" type="button" id="admin-submit" data-i18n="admin_modal_save">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" id="withdraw-modal" aria-hidden="true">
     <div class="modal-backdrop" data-close="true"></div>
     <div class="modal-card withdraw-card" role="dialog" aria-modal="true" aria-labelledby="withdraw-title">
@@ -403,6 +429,7 @@
       </div>
     </div>
   </div>
+
 
   <div class="modal" id="auth-modal" aria-hidden="true">
     <div class="modal-backdrop" data-close="true"></div>
