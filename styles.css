@@ -209,17 +209,16 @@ body.is-loading {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  border: none;
   cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition: opacity 0.2s ease;
 }
 
 .balance:hover {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.1);
+  opacity: 0.9;
 }
 
 .balance.compact {
@@ -240,13 +239,15 @@ body.is-loading {
   display: flex;
   align-items: center;
   gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .balance-row.balance-stars {
   background: rgba(255, 215, 120, 0.14);
-  border: 1px solid rgba(255, 215, 120, 0.26);
-  padding: 3px 8px;
-  border-radius: 999px;
+  border-color: rgba(255, 215, 120, 0.26);
 }
 
 .balance-stars .balance-value {
@@ -264,6 +265,10 @@ body.is-loading {
 }
 
 .balance.compact .balance-row.balance-stars {
+  padding: 2px 6px;
+}
+
+.balance.compact .balance-row {
   padding: 2px 6px;
 }
 
@@ -294,6 +299,12 @@ body.is-loading {
   place-items: center;
   cursor: pointer;
   transition: transform 0.2s ease, background 0.2s ease;
+}
+
+#balance-plus {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
 }
 
 .circle-btn:hover {

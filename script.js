@@ -2128,11 +2128,6 @@ function bindActions() {
   elements.actionButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       const action = btn.dataset.action;
-      if (action === 'withdraw') {
-        triggerHaptic('light');
-        openWithdrawModal();
-        return;
-      }
       if (!state.selectedOwnedId) {
         triggerHaptic('heavy');
         showToast(t('toast_select_gift'));
