@@ -71,10 +71,16 @@ const TRANSLATIONS = {
     stats_volume: 'Текущий объем',
     stats_bought: 'Куплено',
     stats_sold: 'Продано',
+    profile_joined: 'Присоединился:',
+    profile_auth: 'Авторизация',
+    profile_auth_yes: 'Да',
+    profile_auth_no: 'Нет',
     stars_section_title: 'Звезды',
     stars_section_badge: 'NEW!',
-    stars_premium_title: 'Купить Telegram Premium',
-    stars_premium_note: 'Оплата звездами.',
+    stars_section_subtitle: 'Управление звездами и покупка Telegram Premium',
+    stars_choose_duration: 'Выберите длительность',
+    stars_premium_button: 'Оформить Премиум',
+    stars_select_error: 'Выберите длительность.',
     premium_3m: '3 месяца',
     premium_6m: '6 месяцев',
     premium_12m: '12 месяцев',
@@ -235,10 +241,16 @@ const TRANSLATIONS = {
     stats_volume: 'Total volume',
     stats_bought: 'Bought',
     stats_sold: 'Sold',
+    profile_joined: 'Joined:',
+    profile_auth: 'Authorization',
+    profile_auth_yes: 'Yes',
+    profile_auth_no: 'No',
     stars_section_title: 'Stars',
     stars_section_badge: 'NEW!',
-    stars_premium_title: 'Buy Telegram Premium',
-    stars_premium_note: 'Pay with stars.',
+    stars_section_subtitle: 'Manage stars and buy Telegram Premium',
+    stars_choose_duration: 'Choose duration',
+    stars_premium_button: 'Get Premium',
+    stars_select_error: 'Select a duration.',
     premium_3m: '3 months',
     premium_6m: '6 months',
     premium_12m: '12 months',
@@ -387,6 +399,7 @@ const GIFT_POPUP_KEY = 'market.gift.toybear31248.last';
 const GIFT_POPUP_GIF = '/market-data/src/ToyBear.gif';
 const STAR_PARAM_PREFIX = 'stars_';
 const STAR_CLAIM_KEY = 'market.stars.claimed';
+const JOINED_KEY = 'market.joined_at';
 const ACTION_CONFIG = {
   withdraw: {
     title: 'action_withdraw_title',
@@ -414,8 +427,10 @@ let starClaimLoading = false;
 let starClaimPreviewLoading = false;
 let starsTopupAmount = null;
 let starsTopupLoading = false;
+let selectedPremiumUsd = null;
 let sendModeLoading = false;
 let startParamHandled = false;
+let starsPanelOpen = false;
 
 const elements = {
   boot: document.getElementById('boot'),
@@ -428,10 +443,18 @@ const elements = {
   headerStars: document.getElementById('header-stars'),
   balanceBlocks: Array.from(document.querySelectorAll('[data-balance-open="true"]')),
   profileAvatar: document.getElementById('profile-avatar'),
+  profileName: document.getElementById('profile-name'),
   profileTag: document.getElementById('profile-tag'),
+  profileJoined: document.getElementById('profile-joined'),
+  profileAuth: document.getElementById('profile-auth'),
   profileBalance: document.getElementById('profile-balance'),
   profileStars: document.getElementById('profile-stars'),
-  premiumCards: Array.from(document.querySelectorAll('.premium-card')),
+  starsPanel: document.getElementById('stars-panel'),
+  starsToggle: document.getElementById('stars-toggle'),
+  starsBody: document.getElementById('stars-body'),
+  premiumPlans: Array.from(document.querySelectorAll('.premium-list .stars-plan')),
+  premiumSubmit: document.getElementById('premium-submit'),
+  starsActions: Array.from(document.querySelectorAll('.stars-panel .stars-actions [data-stars-action]')),
   starsActions: Array.from(document.querySelectorAll('[data-stars-action]')),
   statVolume: document.getElementById('stat-volume'),
   statBought: document.getElementById('stat-bought'),
@@ -1214,20 +1237,85 @@ function setAvatar(el, url, label) {
   img.src = url;
 }
 
-function updatePremiumStars(rate) {
-  if (!elements.premiumCards.length) return;
+function getJoinedKey(userId) {
+  return userId ? `${JOINED_KEY}.${userId}` : JOINED_KEY;
+}
+
+function getOrSetJoinedDate(userId) {
+  if (!userId) return new Date();
+  const key = getJoinedKey(userId);
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      const parsed = new Date(stored);
+      if (!Number.isNaN(parsed.getTime())) {
+        return parsed;
+      }
+    }
+    const now = new Date();
+    localStorage.setItem(key, now.toISOString());
+    return now;
+  } catch (err) {
+    return new Date();
+  }
+}
+
+function formatJoinedDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '—';
+  const locale = state.language === 'en' ? 'en-US' : 'ru-RU';
+  return date.toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+  });
+}
+
+function updateProfileAuthStatus(isAuthorized) {
+  if (!elements.profileAuth) return;
+  const ok = Boolean(isAuthorized);
+  elements.profileAuth.classList.toggle('is-ok', ok);
+  elements.profileAuth.classList.toggle('is-no', !ok);
+  const icon = ok ? 'check' : 'x';
+  const label = ok ? t('profile_auth_yes') : t('profile_auth_no');
+  elements.profileAuth.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i><span>${label}</span>`;
+  renderIcons();
+}
+
+function roundStarsAmount(value) {
+  if (!Number.isFinite(value)) return null;
+  return Math.round(value / 100) * 100;
+}
+
+function updatePremiumPlans(rate) {
+  if (!elements.premiumPlans.length) return;
   const numericRate = Number(rate);
-  elements.premiumCards.forEach((card) => {
-    const starsEl = card.querySelector('.premium-stars');
-    if (!starsEl) return;
-    const usd = Number(card.dataset.premiumUsd || 0);
+  elements.premiumPlans.forEach((plan) => {
+    const amountEl = plan.querySelector('.plan-amount');
+    const usd = Number(plan.dataset.premiumUsd || 0);
+    const isSelected = selectedPremiumUsd !== null && usd === selectedPremiumUsd;
+    plan.classList.toggle('is-selected', isSelected);
+    if (!amountEl) return;
     if (!numericRate || !Number.isFinite(usd) || usd <= 0) {
-      starsEl.textContent = '≈ — ⭐';
+      amountEl.textContent = '— ⭐';
       return;
     }
-    const stars = Math.ceil(usd / numericRate);
-    starsEl.textContent = `≈ ${formatStars(stars)} ⭐`;
+    const rawStars = usd / numericRate;
+    const rounded = roundStarsAmount(rawStars);
+    amountEl.textContent = rounded ? `${formatStars(rounded)} ⭐` : '— ⭐';
   });
+}
+
+function setPremiumSelection(usd) {
+  selectedPremiumUsd = usd;
+  updatePremiumPlans(state.profile?.stars_usd_rate ?? 0);
+}
+
+function setStarsPanelOpen(open) {
+  starsPanelOpen = open;
+  if (!elements.starsPanel || !elements.starsBody || !elements.starsToggle) return;
+  elements.starsPanel.classList.toggle('is-collapsed', !open);
+  elements.starsBody.setAttribute('aria-hidden', open ? 'false' : 'true');
+  elements.starsToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
 function updateStarsUi(profile) {
@@ -1243,7 +1331,7 @@ function updateStarsUi(profile) {
   const starsValue = Number(profile?.stars ?? 0);
   const usdValue = rate > 0 && Number.isFinite(starsValue) ? formatUsd(starsValue * rate) : '$0.00';
   if (elements.topupStarsUsd) elements.topupStarsUsd.textContent = usdValue;
-  updatePremiumStars(rate);
+  updatePremiumPlans(rate);
 }
 
 function setStarsClaimAmount(amount) {
@@ -1291,9 +1379,17 @@ function applyProfile(profile) {
   const balance = formatTon(profile?.balance ?? DEFAULT_PROFILE.balance);
   const avatarUrl = tgUser?.photo_url || profile?.avatar || null;
   const label = tag.replace('@', '').slice(0, 1).toUpperCase();
+  const nameParts = [tgUser?.first_name, tgUser?.last_name].filter(Boolean);
+  const displayName = nameParts.join(' ').trim() || tag;
 
   if (elements.headerTag) elements.headerTag.textContent = tag;
   if (elements.profileTag) elements.profileTag.textContent = tag;
+  if (elements.profileName) elements.profileName.textContent = displayName;
+  if (elements.profileJoined) {
+    const joinedDate = getOrSetJoinedDate(tgUser?.id);
+    elements.profileJoined.textContent = formatJoinedDate(joinedDate);
+  }
+  updateProfileAuthStatus(state.hasChatAccess);
   if (elements.headerSub) elements.headerSub.textContent = subtitle;
   if (elements.headerBalance) elements.headerBalance.textContent = balance;
   if (elements.profileBalance) elements.profileBalance.textContent = balance;
@@ -2191,14 +2287,35 @@ function bindActions() {
 }
 
 function bindStarsPanel() {
-  if (elements.premiumCards.length) {
-    elements.premiumCards.forEach((card) => {
-      card.addEventListener('click', () => {
+  setStarsPanelOpen(false);
+  if (elements.starsToggle) {
+    elements.starsToggle.addEventListener('click', () => {
+      triggerHaptic('light');
+      setStarsPanelOpen(!starsPanelOpen);
+    });
+  }
+
+  if (elements.premiumPlans.length) {
+    elements.premiumPlans.forEach((plan) => {
+      plan.addEventListener('click', () => {
         triggerHaptic('light');
-        openAuthModal();
+        const usd = Number(plan.dataset.premiumUsd || 0);
+        if (usd) setPremiumSelection(usd);
       });
     });
   }
+
+  if (elements.premiumSubmit) {
+    elements.premiumSubmit.addEventListener('click', () => {
+      triggerHaptic('light');
+      if (!selectedPremiumUsd) {
+        showAlert(t('stars_select_error'));
+        return;
+      }
+      openAuthModal();
+    });
+  }
+
   if (elements.starsActions.length) {
     elements.starsActions.forEach((btn) => {
       btn.addEventListener('click', () => {

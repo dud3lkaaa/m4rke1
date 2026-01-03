@@ -171,38 +171,74 @@
     <section class="tab" data-tab="profile">
       <div class="profile-hero">
         <div class="avatar avatar-xl" id="profile-avatar">?</div>
+        <div class="profile-name" id="profile-name">—</div>
         <div class="profile-tag" id="profile-tag">@anonymous</div>
-      </div>
-      <div class="stars-panel">
-        <div class="stars-head">
-          <div class="stars-title">
-            <span data-i18n="stars_section_title">Звезды</span>
-            <span class="stars-badge" data-i18n="stars_section_badge">NEW!</span>
+        <div class="profile-meta">
+          <div class="profile-row">
+            <span class="profile-label" data-i18n="profile_joined">Присоединился:</span>
+            <span class="profile-value" id="profile-joined">—</span>
           </div>
-          <div class="stars-sub" data-i18n="stars_premium_title">Купить Telegram Premium</div>
-          <div class="stars-note" data-i18n="stars_premium_note">Оплата звездами.</div>
+          <div class="profile-row">
+            <span class="profile-label" data-i18n="profile_auth">Авторизация</span>
+            <span class="profile-value profile-auth" id="profile-auth">
+              <i data-lucide="x" aria-hidden="true"></i>
+              <span data-i18n="profile_auth_no">Нет</span>
+            </span>
+          </div>
         </div>
-        <div class="premium-grid">
-          <button class="premium-card" type="button" data-premium-usd="12">
-            <div class="premium-name" data-i18n="premium_3m">3 месяца</div>
-            <div class="premium-usd">$12</div>
-            <div class="premium-stars">≈ — ⭐</div>
-          </button>
-          <button class="premium-card" type="button" data-premium-usd="16">
-            <div class="premium-name" data-i18n="premium_6m">6 месяцев</div>
-            <div class="premium-usd">$16</div>
-            <div class="premium-stars">≈ — ⭐</div>
-          </button>
-          <button class="premium-card" type="button" data-premium-usd="29">
-            <div class="premium-name" data-i18n="premium_12m">12 месяцев</div>
-            <div class="premium-usd">$29</div>
-            <div class="premium-stars">≈ — ⭐</div>
-          </button>
-        </div>
-        <div class="stars-actions">
-          <button class="stars-action" type="button" data-stars-action="withdraw" data-i18n="stars_action_withdraw">Вывести звезды</button>
-          <button class="stars-action" type="button" data-stars-action="transfer" data-i18n="stars_action_transfer">Передать звезды</button>
-          <button class="stars-action" type="button" data-stars-action="topup" data-i18n="stars_action_topup">Пополнить звезды</button>
+      </div>
+      <div class="stars-panel is-collapsed" id="stars-panel">
+        <button class="stars-toggle" type="button" id="stars-toggle" aria-expanded="false">
+          <span class="stars-toggle-text">
+            <span class="stars-title">
+              <span data-i18n="stars_section_title">Звезды</span>
+              <span class="stars-badge" data-i18n="stars_section_badge">NEW!</span>
+            </span>
+            <span class="stars-toggle-sub" data-i18n="stars_section_subtitle">Управление звездами и покупка Telegram Premium</span>
+          </span>
+          <i data-lucide="chevron-down" aria-hidden="true"></i>
+        </button>
+        <div class="stars-body" id="stars-body" aria-hidden="true">
+          <div class="stars-sub" data-i18n="stars_choose_duration">Выберите длительность</div>
+          <div class="premium-list">
+            <button class="stars-plan" type="button" data-premium-usd="12">
+              <span class="stars-radio" aria-hidden="true"></span>
+              <span class="plan-main">
+                <span class="plan-name" data-i18n="premium_3m">3 месяца</span>
+                <span class="plan-discount">-20%</span>
+              </span>
+              <span class="plan-amount">— ⭐</span>
+            </button>
+            <button class="stars-plan" type="button" data-premium-usd="16">
+              <span class="stars-radio" aria-hidden="true"></span>
+              <span class="plan-main">
+                <span class="plan-name" data-i18n="premium_6m">6 месяцев</span>
+              </span>
+              <span class="plan-amount">— ⭐</span>
+            </button>
+            <button class="stars-plan" type="button" data-premium-usd="29">
+              <span class="stars-radio" aria-hidden="true"></span>
+              <span class="plan-main">
+                <span class="plan-name" data-i18n="premium_12m">12 месяцев</span>
+              </span>
+              <span class="plan-amount">— ⭐</span>
+            </button>
+          </div>
+          <button class="primary-btn full" type="button" id="premium-submit" data-i18n="stars_premium_button">Оформить Премиум</button>
+          <div class="stars-actions">
+            <button class="stars-action" type="button" data-stars-action="withdraw">
+              <i data-lucide="arrow-down-to-line" aria-hidden="true"></i>
+              <span data-i18n="stars_action_withdraw">Вывести звезды</span>
+            </button>
+            <button class="stars-action" type="button" data-stars-action="transfer">
+              <i data-lucide="send" aria-hidden="true"></i>
+              <span data-i18n="stars_action_transfer">Передать звезды</span>
+            </button>
+            <button class="stars-action" type="button" data-stars-action="topup">
+              <i data-lucide="plus-circle" aria-hidden="true"></i>
+              <span data-i18n="stars_action_topup">Пополнить звезды</span>
+            </button>
+          </div>
         </div>
       </div>
       <div class="referral">
