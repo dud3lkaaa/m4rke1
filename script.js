@@ -130,6 +130,15 @@ const TRANSLATIONS = {
     topup_title: 'Пополнение',
     topup_ton_label: 'TON',
     topup_stars_label: 'STARS',
+    topup_ton_deposit: 'Ввод TON',
+    topup_ton_withdraw: 'Вывод TON',
+    topup_stars_deposit: 'Ввод звёзд',
+    topup_stars_withdraw: 'Вывод звёзд',
+    stars_topup_title: 'Пополнение звёзд',
+    stars_topup_note: 'Оплата через XTR-чек.',
+    stars_topup_pay: 'Оплатить XTR',
+    stars_topup_select: 'Выберите сумму.',
+    stars_topup_created: 'XTR-чек создан.',
     withdraw_title: 'Вывод звёзд',
     withdraw_ru: 'Карта РФ',
     withdraw_intl: 'Карта зарубеж',
@@ -269,6 +278,15 @@ const TRANSLATIONS = {
     topup_title: 'Top up',
     topup_ton_label: 'TON',
     topup_stars_label: 'STARS',
+    topup_ton_deposit: 'Deposit TON',
+    topup_ton_withdraw: 'Withdraw TON',
+    topup_stars_deposit: 'Top up stars',
+    topup_stars_withdraw: 'Withdraw stars',
+    stars_topup_title: 'Top up stars',
+    stars_topup_note: 'Payment via XTR check.',
+    stars_topup_pay: 'Pay XTR',
+    stars_topup_select: 'Select an amount.',
+    stars_topup_created: 'XTR check created.',
     withdraw_title: 'Withdraw stars',
     withdraw_ru: 'RU card',
     withdraw_intl: 'International card',
@@ -362,6 +380,7 @@ let dataLoaded = false;
 let pendingStarToken = null;
 let starClaimLoading = false;
 let starClaimPreviewLoading = false;
+let starsTopupAmount = null;
 let sendModeLoading = false;
 let startParamHandled = false;
 
@@ -374,6 +393,7 @@ const elements = {
   headerSub: document.getElementById('header-sub'),
   headerBalance: document.getElementById('header-balance'),
   headerStars: document.getElementById('header-stars'),
+  balanceBlocks: Array.from(document.querySelectorAll('[data-balance-open="true"]')),
   profileAvatar: document.getElementById('profile-avatar'),
   profileTag: document.getElementById('profile-tag'),
   profileBalance: document.getElementById('profile-balance'),
@@ -456,6 +476,10 @@ const elements = {
   topupTon: document.getElementById('topup-ton'),
   topupStars: document.getElementById('topup-stars'),
   topupStarsUsd: document.getElementById('topup-stars-usd'),
+  starsTopupModal: document.getElementById('stars-topup-modal'),
+  starsTopupGrid: document.getElementById('stars-topup-grid'),
+  starsTopupButtons: Array.from(document.querySelectorAll('[data-stars-topup]')),
+  starsTopupPay: document.getElementById('stars-topup-pay'),
   withdrawModal: document.getElementById('withdraw-modal'),
   withdrawOptions: Array.from(document.querySelectorAll('[data-withdraw]')),
   starsClaimModal: document.getElementById('stars-claim-modal'),
@@ -1778,6 +1802,16 @@ function bindBalancePlus() {
   });
 }
 
+function bindBalanceBlocks() {
+  if (!elements.balanceBlocks.length) return;
+  elements.balanceBlocks.forEach((block) => {
+    block.addEventListener('click', () => {
+      triggerHaptic('light');
+      openTopupModal();
+    });
+  });
+}
+
 function bindSearch() {
   if (!elements.searchInput) return;
   elements.searchInput.addEventListener('input', (event) => {
@@ -1949,6 +1983,27 @@ function bindTopupModal() {
       closeTopupModal();
     });
   });
+
+  elements.topupModal.querySelectorAll('[data-ton-action]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      triggerHaptic('light');
+      closeTopupModal();
+      openAuthModal();
+    });
+  });
+
+  elements.topupModal.querySelectorAll('[data-stars-action]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      triggerHaptic('light');
+      const action = btn.dataset.starsAction;
+      closeTopupModal();
+      if (action === 'withdraw') {
+        openWithdrawModal();
+        return;
+      }
+      openStarsTopupModal();
+    });
+  });
 }
 
 function bindWithdrawModal() {
@@ -1966,6 +2021,32 @@ function bindWithdrawModal() {
         closeWithdrawModal();
         openAuthModal();
       });
+    });
+  }
+}
+
+function bindStarsTopupModal() {
+  if (!elements.starsTopupModal) return;
+  elements.starsTopupModal.querySelectorAll('[data-close="true"]').forEach((el) => {
+    el.addEventListener('click', () => {
+      triggerHaptic('light');
+      closeStarsTopupModal();
+    });
+  });
+  if (elements.starsTopupButtons.length) {
+    elements.starsTopupButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        triggerHaptic('light');
+        const value = Number(btn.dataset.starsTopup || 0);
+        if (!Number.isFinite(value) || value <= 0) return;
+        setStarsTopupAmount(value);
+      });
+    });
+  }
+  if (elements.starsTopupPay) {
+    elements.starsTopupPay.addEventListener('click', () => {
+      triggerHaptic('light');
+      handleStarsTopupPay();
     });
   }
 }
@@ -2148,6 +2229,44 @@ function closeWithdrawModal() {
   if (!elements.withdrawModal) return;
   elements.withdrawModal.classList.remove('open');
   elements.withdrawModal.setAttribute('aria-hidden', 'true');
+}
+
+function setStarsTopupAmount(amount) {
+  starsTopupAmount = amount;
+  if (elements.starsTopupButtons.length) {
+    elements.starsTopupButtons.forEach((btn) => {
+      const value = Number(btn.dataset.starsTopup || 0);
+      btn.classList.toggle('is-active', Number.isFinite(value) && value === amount);
+    });
+  }
+  if (elements.starsTopupPay) {
+    elements.starsTopupPay.disabled = !amount;
+    elements.starsTopupPay.textContent = amount
+      ? `${t('stars_topup_pay')} · ${formatStars(amount)}`
+      : t('stars_topup_pay');
+  }
+}
+
+function openStarsTopupModal() {
+  if (!elements.starsTopupModal) return;
+  setStarsTopupAmount(null);
+  elements.starsTopupModal.classList.add('open');
+  elements.starsTopupModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeStarsTopupModal() {
+  if (!elements.starsTopupModal) return;
+  elements.starsTopupModal.classList.remove('open');
+  elements.starsTopupModal.setAttribute('aria-hidden', 'true');
+}
+
+function handleStarsTopupPay() {
+  if (!starsTopupAmount) {
+    showToast(t('stars_topup_select'));
+    return;
+  }
+  showToast(t('stars_topup_created'));
+  closeStarsTopupModal();
 }
 
 async function previewStarsClaim(token) {
@@ -2731,14 +2850,16 @@ document.addEventListener('DOMContentLoaded', () => {
   bindCodeInput();
   bindPasswordInput();
   bindGiftModal();
+  bindBalancePlus();
+  bindBalanceBlocks();
   bindTopupModal();
+  bindStarsTopupModal();
   bindWithdrawModal();
   bindStarsClaimModal();
   bindActionModal();
   bindPurchaseModal();
   bindCartModal();
   bindActions();
-  bindBalancePlus();
   bindAuthModal();
   setAuthorized(false);
   setTab('market');

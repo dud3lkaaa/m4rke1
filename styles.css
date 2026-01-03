@@ -213,6 +213,13 @@ body.is-loading {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.balance:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .balance.compact {
@@ -235,13 +242,29 @@ body.is-loading {
   gap: 8px;
 }
 
+.balance-row.balance-stars {
+  background: rgba(255, 215, 120, 0.14);
+  border: 1px solid rgba(255, 215, 120, 0.26);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
 .balance-stars .balance-value {
   font-size: 0.85rem;
-  color: var(--muted);
+  color: #ffe1a6;
+  font-weight: 700;
+}
+
+.balance-stars .star-icon {
+  filter: drop-shadow(0 0 6px rgba(255, 210, 110, 0.5));
 }
 
 .balance.compact .balance-row {
   gap: 6px;
+}
+
+.balance.compact .balance-row.balance-stars {
+  padding: 2px 6px;
 }
 
 .balance.compact .star-icon {
@@ -1181,6 +1204,19 @@ body.is-loading {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+.topup-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.topup-action {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+}
+
 .topup-label {
   font-size: 0.75rem;
   color: var(--muted);
@@ -1204,6 +1240,35 @@ body.is-loading {
   font-size: 0.68rem;
   color: var(--muted);
   letter-spacing: 2px;
+}
+
+.stars-topup-card {
+  width: min(440px, 92vw);
+}
+
+.stars-topup-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0 12px;
+}
+
+.stars-topup-grid .option-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.stars-topup-grid .option-btn.is-active {
+  border-color: rgba(255, 215, 120, 0.6);
+  color: #ffe1a6;
+  background: rgba(255, 215, 120, 0.12);
+}
+
+.stars-topup-note {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-bottom: 16px;
 }
 
 .withdraw-options {

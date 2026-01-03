@@ -52,7 +52,7 @@
           <div class="user-sub" id="header-sub" data-i18n="header_subtitle">Маркет цифровых подарков</div>
         </div>
       </div>
-      <div class="balance balance-stack">
+      <div class="balance balance-stack" data-balance-open="true">
         <div class="balance-values">
           <div class="balance-row">
             <img class="ton-icon" src="./img/image.png" alt="TON">
@@ -73,7 +73,7 @@
       <button class="circle-btn" type="button" id="settings-btn" aria-label="Настройки" data-i18n-aria="aria_settings">
         <i data-lucide="settings" aria-hidden="true"></i>
       </button>
-      <div class="balance compact balance-stack">
+      <div class="balance compact balance-stack" data-balance-open="true">
         <div class="balance-values">
           <div class="balance-row">
             <img class="ton-icon" src="./img/image.png" alt="TON">
@@ -254,6 +254,10 @@
               <img class="ton-icon" src="./img/image.png" alt="TON">
               <span id="topup-ton">0</span>
             </div>
+            <div class="topup-actions">
+              <button class="ghost-btn topup-action" type="button" data-ton-action="deposit" data-i18n="topup_ton_deposit">Ввод TON</button>
+              <button class="ghost-btn topup-action" type="button" data-ton-action="withdraw" data-i18n="topup_ton_withdraw">Вывод TON</button>
+            </div>
           </div>
           <div class="topup-item">
             <div class="topup-usd" id="topup-stars-usd">$0.00</div>
@@ -262,8 +266,34 @@
               <span id="topup-stars">0</span>
             </div>
             <div class="topup-sublabel" data-i18n="topup_stars_label">STARS</div>
+            <div class="topup-actions">
+              <button class="ghost-btn topup-action" type="button" data-stars-action="deposit" data-i18n="topup_stars_deposit">Ввод звёзд</button>
+              <button class="ghost-btn topup-action" type="button" data-stars-action="withdraw" data-i18n="topup_stars_withdraw">Вывод звёзд</button>
+            </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="stars-topup-modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close="true"></div>
+    <div class="modal-card stars-topup-card" role="dialog" aria-modal="true" aria-labelledby="stars-topup-title">
+      <button class="circle-btn modal-close" type="button" data-close="true" aria-label="Закрыть" data-i18n-aria="aria_close">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+      <div class="modal-body">
+        <h2 id="stars-topup-title" data-i18n="stars_topup_title">Пополнение звёзд</h2>
+        <div class="stars-topup-grid" id="stars-topup-grid">
+          <button class="option-btn" type="button" data-stars-topup="50">50</button>
+          <button class="option-btn" type="button" data-stars-topup="250">250</button>
+          <button class="option-btn" type="button" data-stars-topup="500">500</button>
+          <button class="option-btn" type="button" data-stars-topup="1000">1000</button>
+          <button class="option-btn" type="button" data-stars-topup="2500">2500</button>
+          <button class="option-btn" type="button" data-stars-topup="5000">5000</button>
+        </div>
+        <div class="stars-topup-note" data-i18n="stars_topup_note">Оплата через XTR-чек.</div>
+        <button class="primary-btn full" type="button" id="stars-topup-pay" data-i18n="stars_topup_pay" disabled>Оплатить XTR</button>
       </div>
     </div>
   </div>
