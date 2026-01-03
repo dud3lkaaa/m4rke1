@@ -336,7 +336,17 @@ body.is-profile-header #header-profile {
 
 .header-profile .balance-row:not(.balance-stars) {
   order: 2;
-  transform: translateY(4px);
+  transform: translateY(2px);
+}
+
+.header-profile .balance-value,
+.header-profile .balance-stars .balance-value {
+  font-size: 0.9rem;
+}
+
+.header-profile .ton-icon {
+  width: 18px;
+  height: 18px;
 }
 
 .star-icon {
