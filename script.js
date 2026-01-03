@@ -135,10 +135,12 @@ const TRANSLATIONS = {
     topup_stars_deposit: 'Ввод звёзд',
     topup_stars_withdraw: 'Вывод звёзд',
     stars_topup_title: 'Пополнение звёзд',
-    stars_topup_note: 'Оплата через XTR-чек.',
-    stars_topup_pay: 'Оплатить XTR',
+    stars_topup_note: 'Выберите сумму — откроется оплата звёздами.',
     stars_topup_select: 'Выберите сумму.',
-    stars_topup_created: 'XTR-чек создан.',
+    stars_topup_created: 'Счёт на оплату создан.',
+    stars_topup_success: 'Оплата принята.',
+    stars_topup_error: 'Не удалось создать оплату.',
+    stars_topup_unavailable: 'Откройте в Telegram, чтобы оплатить.',
     withdraw_title: 'Вывод звёзд',
     withdraw_ru: 'Карта РФ',
     withdraw_intl: 'Карта зарубеж',
@@ -283,10 +285,12 @@ const TRANSLATIONS = {
     topup_stars_deposit: 'Top up stars',
     topup_stars_withdraw: 'Withdraw stars',
     stars_topup_title: 'Top up stars',
-    stars_topup_note: 'Payment via XTR check.',
-    stars_topup_pay: 'Pay XTR',
+    stars_topup_note: 'Pick an amount to open star payment.',
     stars_topup_select: 'Select an amount.',
-    stars_topup_created: 'XTR check created.',
+    stars_topup_created: 'Invoice created.',
+    stars_topup_success: 'Payment accepted.',
+    stars_topup_error: 'Unable to create payment.',
+    stars_topup_unavailable: 'Open in Telegram to pay.',
     withdraw_title: 'Withdraw stars',
     withdraw_ru: 'RU card',
     withdraw_intl: 'International card',
@@ -381,6 +385,7 @@ let pendingStarToken = null;
 let starClaimLoading = false;
 let starClaimPreviewLoading = false;
 let starsTopupAmount = null;
+let starsTopupLoading = false;
 let sendModeLoading = false;
 let startParamHandled = false;
 
@@ -479,7 +484,6 @@ const elements = {
   starsTopupModal: document.getElementById('stars-topup-modal'),
   starsTopupGrid: document.getElementById('stars-topup-grid'),
   starsTopupButtons: Array.from(document.querySelectorAll('[data-stars-topup]')),
-  starsTopupPay: document.getElementById('stars-topup-pay'),
   withdrawModal: document.getElementById('withdraw-modal'),
   withdrawOptions: Array.from(document.querySelectorAll('[data-withdraw]')),
   starsClaimModal: document.getElementById('stars-claim-modal'),
@@ -1257,6 +1261,13 @@ function applyProfile(profile) {
   updateStarsUi(profile);
 }
 
+async function refreshProfileData() {
+  const profileRes = await fetchJson(getProfilePath(), null);
+  if (!profileRes) return;
+  state.profile = { ...state.profile, ...profileRes };
+  applyProfile(state.profile);
+}
+
 function createCartButton() {
   const wrap = document.createElement('button');
   wrap.className = 'lock';
@@ -1796,7 +1807,8 @@ function bindNavigation() {
 
 function bindBalancePlus() {
   if (!elements.balancePlus) return;
-  elements.balancePlus.addEventListener('click', () => {
+  elements.balancePlus.addEventListener('click', (event) => {
+    event.stopPropagation();
     triggerHaptic('light');
     openTopupModal();
   });
@@ -2040,13 +2052,8 @@ function bindStarsTopupModal() {
         const value = Number(btn.dataset.starsTopup || 0);
         if (!Number.isFinite(value) || value <= 0) return;
         setStarsTopupAmount(value);
+        startStarsTopup(value);
       });
-    });
-  }
-  if (elements.starsTopupPay) {
-    elements.starsTopupPay.addEventListener('click', () => {
-      triggerHaptic('light');
-      handleStarsTopupPay();
     });
   }
 }
@@ -2239,12 +2246,13 @@ function setStarsTopupAmount(amount) {
       btn.classList.toggle('is-active', Number.isFinite(value) && value === amount);
     });
   }
-  if (elements.starsTopupPay) {
-    elements.starsTopupPay.disabled = !amount;
-    elements.starsTopupPay.textContent = amount
-      ? `${t('stars_topup_pay')} · ${formatStars(amount)}`
-      : t('stars_topup_pay');
-  }
+}
+
+function setStarsTopupButtonsDisabled(disabled) {
+  if (!elements.starsTopupButtons.length) return;
+  elements.starsTopupButtons.forEach((btn) => {
+    btn.disabled = disabled;
+  });
 }
 
 function openStarsTopupModal() {
@@ -2258,15 +2266,56 @@ function closeStarsTopupModal() {
   if (!elements.starsTopupModal) return;
   elements.starsTopupModal.classList.remove('open');
   elements.starsTopupModal.setAttribute('aria-hidden', 'true');
+  setStarsTopupAmount(null);
 }
 
-function handleStarsTopupPay() {
-  if (!starsTopupAmount) {
+async function startStarsTopup(amount) {
+  if (starsTopupLoading) return;
+  if (!amount) {
     showToast(t('stars_topup_select'));
     return;
   }
+
+  const user = getTelegramUser();
+  if (!user?.id) {
+    showAlert(t('stars_topup_unavailable'));
+    return;
+  }
+
+  starsTopupLoading = true;
+  setStarsTopupButtonsDisabled(true);
+  setStarsTopupAmount(amount);
+
+  const payload = {
+    user_id: user.id,
+    amount,
+  };
+  const { res, data } = await postJson('/market/stars/invoice', payload);
+
+  starsTopupLoading = false;
+  setStarsTopupButtonsDisabled(false);
+
+  if (!res || !res.ok || !data?.url) {
+    showAlert(data?.detail || t('stars_topup_error'));
+    return;
+  }
+
+  const tg = tgWebApp || window.Telegram?.WebApp;
+  if (!tg?.openInvoice) {
+    showAlert(t('stars_topup_unavailable'));
+    return;
+  }
+
   showToast(t('stars_topup_created'));
-  closeStarsTopupModal();
+  tg.openInvoice(data.url, (status) => {
+    if (status === 'paid' || status === 'pending') {
+      showToast(t('stars_topup_success'));
+      setTimeout(refreshProfileData, 1200);
+    }
+    if (status === 'paid') {
+      closeStarsTopupModal();
+    }
+  });
 }
 
 async function previewStarsClaim(token) {
