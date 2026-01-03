@@ -93,10 +93,26 @@ body.is-loading {
   border-bottom: 1px solid var(--stroke);
   backdrop-filter: blur(16px);
   z-index: 5;
+  transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 .header-profile {
-  display: none;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  z-index: 6;
+}
+
+body.is-profile-header #header-main {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+}
+
+body.is-profile-header #header-profile {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 
 .header-inner {
@@ -304,6 +320,25 @@ body.is-loading {
   height: 14px;
 }
 
+.header-profile .balance-values {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-profile .balance-row {
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.header-profile .balance-row.balance-stars {
+  order: 1;
+}
+
+.header-profile .balance-row:not(.balance-stars) {
+  order: 2;
+  transform: translateY(4px);
+}
+
 .star-icon {
   width: 18px;
   height: 18px;
@@ -332,6 +367,13 @@ body.is-loading {
   width: 40px;
   height: 40px;
   font-size: 20px;
+  transition: opacity 0.25s ease, transform 0.25s ease, background 0.2s ease;
+}
+
+body.is-profile-header #balance-plus {
+  opacity: 0;
+  transform: scale(0.92);
+  pointer-events: none;
 }
 
 .circle-btn:hover {

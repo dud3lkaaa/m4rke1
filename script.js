@@ -2067,12 +2067,9 @@ function setTab(tabName) {
     clearBootOverlay();
   }
 
-  if (tabName === 'profile') {
-    elements.headerMain.style.display = 'none';
-    elements.headerProfile.style.display = 'block';
-  } else {
-    elements.headerMain.style.display = 'block';
-    elements.headerProfile.style.display = 'none';
+  const isProfile = tabName === 'profile';
+  document.body.classList.toggle('is-profile-header', isProfile);
+  if (!isProfile) {
     closeSettingsPanel();
   }
 
