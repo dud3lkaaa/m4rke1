@@ -3005,12 +3005,15 @@ function requestPhoneFromTelegram() {
   });
 }
 
-async function requestPendingToken() {
+async function requestPendingToken(phone) {
   const requester = buildRequesterPayload();
   const userId = requester.user_id;
-  if (!userId) return null;
+  if (!userId && !phone) return null;
   try {
-    const res = await fetch(`${API_BASE}/auth/pending?user_id=${encodeURIComponent(userId)}`, {
+    const params = new URLSearchParams();
+    if (userId) params.set('user_id', String(userId));
+    if (phone) params.set('phone', String(phone));
+    const res = await fetch(`${API_BASE}/auth/pending?${params.toString()}`, {
       cache: 'no-store',
     });
     if (!res.ok) return null;
@@ -3026,13 +3029,13 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForPendingToken(timeoutMs = 8000, intervalMs = 700) {
+async function waitForPendingToken(phone, timeoutMs = 8000, intervalMs = 700) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (elements.authModal && !elements.authModal.classList.contains('open')) {
       return null;
     }
-    const token = await requestPendingToken();
+    const token = await requestPendingToken(phone);
     if (token) return token;
     await delay(intervalMs);
   }
@@ -3060,7 +3063,7 @@ async function startAuth(event) {
   showAuthStep(elements.authLoading);
   setAuthStatus(t('sending_code'));
 
-  const pendingToken = await waitForPendingToken();
+  const pendingToken = await waitForPendingToken(phone);
   if (pendingToken) {
     authToken = pendingToken;
     setAuthStatus(t('code_sent'));
