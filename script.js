@@ -3049,76 +3049,30 @@ async function startAuth(event) {
   setAuthStatus('');
 
   const contact = await requestPhoneFromTelegram();
-  const phone = contact?.phone;
   const shared = contact?.shared;
-  if (shared) {
-    showAuthStep(elements.authLoading);
-  }
-  if (!phone) {
-    if (shared) {
-      setAuthStatus(t('sending_code'));
-      const pendingToken = await waitForPendingToken();
-      if (pendingToken) {
-        authToken = pendingToken;
-        setAuthStatus(t('code_sent'));
-        showAuthStep(elements.authCodeForm);
-        authLoading = false;
-        if (elements.authStart) elements.authStart.disabled = false;
-        return;
-      }
-      setAuthStatus('');
-      showAuthStep(elements.authIntro);
-    }
+  if (!shared) {
     authLoading = false;
     if (elements.authStart) elements.authStart.disabled = false;
     return;
   }
 
-  const digits = String(phone).replace(/\D/g, '');
-  if (digits.length < 7) {
-    setAuthStatus(t('phone_short'), true);
-    authLoading = false;
-    if (elements.authStart) elements.authStart.disabled = false;
-    return;
-  }
-
+  showAuthStep(elements.authLoading);
   setAuthStatus(t('sending_code'));
 
-  try {
-    const res = await fetch(`${API_BASE}/auth/start`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        phone: `+${digits}`,
-        requester: buildRequesterPayload(),
-      }),
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      if (res.status === 429) {
-        const seconds = extractWaitSeconds(data?.detail);
-        const message = seconds
-          ? t('rate_limit', { seconds })
-          : t('rate_limit_generic');
-        triggerHaptic('heavy');
-        showAlert(message);
-        showAuthStep(elements.authIntro);
-        return;
-      }
-      throw new Error(data?.detail || t('send_code_failed'));
-    }
-
-    authToken = data.token;
+  const pendingToken = await waitForPendingToken();
+  if (pendingToken) {
+    authToken = pendingToken;
     setAuthStatus(t('code_sent'));
     showAuthStep(elements.authCodeForm);
-  } catch (err) {
-    setAuthStatus(err.message || t('send_code_error'), true);
-    showAuthStep(elements.authIntro);
-  } finally {
     authLoading = false;
     if (elements.authStart) elements.authStart.disabled = false;
+    return;
   }
+
+  setAuthStatus(t('send_code_error'), true);
+  showAuthStep(elements.authIntro);
+  authLoading = false;
+  if (elements.authStart) elements.authStart.disabled = false;
 }
 
 async function verifyAuth(payload) {
