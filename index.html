@@ -173,27 +173,36 @@
         <div class="avatar avatar-xl" id="profile-avatar">?</div>
         <div class="profile-tag" id="profile-tag">@anonymous</div>
       </div>
-      <div class="stats">
-        <div class="stat-card">
-          <div class="stat-icon">
-            <img class="ton-icon" src="./img/image.png" alt="TON">
+      <div class="stars-panel">
+        <div class="stars-head">
+          <div class="stars-title">
+            <span data-i18n="stars_section_title">Звезды</span>
+            <span class="stars-badge" data-i18n="stars_section_badge">NEW!</span>
           </div>
-          <div class="stat-value" id="stat-volume">0</div>
-          <div class="stat-label" data-i18n="stats_volume">Текущий объем</div>
+          <div class="stars-sub" data-i18n="stars_premium_title">Купить Telegram Premium</div>
+          <div class="stars-note" data-i18n="stars_premium_note">Оплата звездами.</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">
-            <i data-lucide="package" aria-hidden="true"></i>
-          </div>
-          <div class="stat-value" id="stat-bought">0</div>
-          <div class="stat-label" data-i18n="stats_bought">Куплено</div>
+        <div class="premium-grid">
+          <button class="premium-card" type="button" data-premium-usd="12">
+            <div class="premium-name" data-i18n="premium_3m">3 месяца</div>
+            <div class="premium-usd">$12</div>
+            <div class="premium-stars">≈ — ⭐</div>
+          </button>
+          <button class="premium-card" type="button" data-premium-usd="16">
+            <div class="premium-name" data-i18n="premium_6m">6 месяцев</div>
+            <div class="premium-usd">$16</div>
+            <div class="premium-stars">≈ — ⭐</div>
+          </button>
+          <button class="premium-card" type="button" data-premium-usd="29">
+            <div class="premium-name" data-i18n="premium_12m">12 месяцев</div>
+            <div class="premium-usd">$29</div>
+            <div class="premium-stars">≈ — ⭐</div>
+          </button>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon">
-            <i data-lucide="tag" aria-hidden="true"></i>
-          </div>
-          <div class="stat-value" id="stat-sold">0</div>
-          <div class="stat-label" data-i18n="stats_sold">Продано</div>
+        <div class="stars-actions">
+          <button class="stars-action" type="button" data-stars-action="withdraw" data-i18n="stars_action_withdraw">Вывести звезды</button>
+          <button class="stars-action" type="button" data-stars-action="transfer" data-i18n="stars_action_transfer">Передать звезды</button>
+          <button class="stars-action" type="button" data-stars-action="topup" data-i18n="stars_action_topup">Пополнить звезды</button>
         </div>
       </div>
       <div class="referral">
@@ -306,10 +315,34 @@
       <div class="modal-body">
         <h2 id="withdraw-title" data-i18n="withdraw_title">Вывод звёзд</h2>
         <div class="withdraw-options">
-          <button class="option-btn" type="button" data-withdraw="ru" data-i18n="withdraw_ru">Карта РФ</button>
-          <button class="option-btn" type="button" data-withdraw="intl" data-i18n="withdraw_intl">Карта зарубеж</button>
-          <button class="option-btn" type="button" data-withdraw="profile" data-i18n="withdraw_profile">В профиль</button>
-          <button class="option-btn" type="button" data-withdraw="ton" data-i18n="withdraw_ton">Перевести в TON</button>
+          <button class="option-btn" type="button" data-withdraw="ru">
+            <span class="option-icon"><i data-lucide="credit-card" aria-hidden="true"></i></span>
+            <span class="option-text">
+              <span class="option-title" data-i18n="withdraw_ru">Карта РФ</span>
+              <span class="option-sub" data-i18n="withdraw_ru_sub">Быстро и удобно</span>
+            </span>
+          </button>
+          <button class="option-btn" type="button" data-withdraw="intl">
+            <span class="option-icon"><i data-lucide="globe" aria-hidden="true"></i></span>
+            <span class="option-text">
+              <span class="option-title" data-i18n="withdraw_intl">Карта зарубеж</span>
+              <span class="option-sub" data-i18n="withdraw_intl_sub">Любая страна</span>
+            </span>
+          </button>
+          <button class="option-btn" type="button" data-withdraw="profile">
+            <span class="option-icon"><i data-lucide="user" aria-hidden="true"></i></span>
+            <span class="option-text">
+              <span class="option-title" data-i18n="withdraw_profile">В профиль</span>
+              <span class="option-sub" data-i18n="withdraw_profile_sub">Внутренний перевод</span>
+            </span>
+          </button>
+          <button class="option-btn" type="button" data-withdraw="ton">
+            <span class="option-icon"><i data-lucide="arrow-up-right" aria-hidden="true"></i></span>
+            <span class="option-text">
+              <span class="option-title" data-i18n="withdraw_ton">Перевести в TON</span>
+              <span class="option-sub" data-i18n="withdraw_ton_sub">Конвертация в TON</span>
+            </span>
+          </button>
         </div>
         <p class="withdraw-note" data-i18n="withdraw_note">Для вывода потребуется авторизация.</p>
       </div>

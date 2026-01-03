@@ -71,6 +71,16 @@ const TRANSLATIONS = {
     stats_volume: 'Текущий объем',
     stats_bought: 'Куплено',
     stats_sold: 'Продано',
+    stars_section_title: 'Звезды',
+    stars_section_badge: 'NEW!',
+    stars_premium_title: 'Купить Telegram Premium',
+    stars_premium_note: 'Оплата звездами.',
+    premium_3m: '3 месяца',
+    premium_6m: '6 месяцев',
+    premium_12m: '12 месяцев',
+    stars_action_withdraw: 'Вывести звезды',
+    stars_action_transfer: 'Передать звезды',
+    stars_action_topup: 'Пополнить звезды',
     ref_title: 'Реф система',
     ref_text: 'Приглашай друзей и получай до 5% с их депозитов.',
     ref_button: 'Пригласить друзей',
@@ -146,6 +156,10 @@ const TRANSLATIONS = {
     withdraw_intl: 'Карта зарубеж',
     withdraw_profile: 'В профиль',
     withdraw_ton: 'Перевести в TON',
+    withdraw_ru_sub: 'Быстро и удобно',
+    withdraw_intl_sub: 'Любая страна',
+    withdraw_profile_sub: 'Внутренний перевод',
+    withdraw_ton_sub: 'Конвертация в TON',
     withdraw_note: 'Для вывода потребуется авторизация.',
     stars_claim_title: 'Зачисление звёзд',
     stars_claim_button: 'Получить',
@@ -221,6 +235,16 @@ const TRANSLATIONS = {
     stats_volume: 'Total volume',
     stats_bought: 'Bought',
     stats_sold: 'Sold',
+    stars_section_title: 'Stars',
+    stars_section_badge: 'NEW!',
+    stars_premium_title: 'Buy Telegram Premium',
+    stars_premium_note: 'Pay with stars.',
+    premium_3m: '3 months',
+    premium_6m: '6 months',
+    premium_12m: '12 months',
+    stars_action_withdraw: 'Withdraw stars',
+    stars_action_transfer: 'Transfer stars',
+    stars_action_topup: 'Top up stars',
     ref_title: 'Referral program',
     ref_text: 'Invite friends and earn up to 5% from their deposits.',
     ref_button: 'Invite friends',
@@ -296,6 +320,10 @@ const TRANSLATIONS = {
     withdraw_intl: 'International card',
     withdraw_profile: 'To profile',
     withdraw_ton: 'Convert to TON',
+    withdraw_ru_sub: 'Fast payout',
+    withdraw_intl_sub: 'Any country',
+    withdraw_profile_sub: 'Internal transfer',
+    withdraw_ton_sub: 'Convert to TON',
     withdraw_note: 'Authorization required to withdraw.',
     stars_claim_title: 'Claim stars',
     stars_claim_button: 'Claim',
@@ -403,6 +431,8 @@ const elements = {
   profileTag: document.getElementById('profile-tag'),
   profileBalance: document.getElementById('profile-balance'),
   profileStars: document.getElementById('profile-stars'),
+  premiumCards: Array.from(document.querySelectorAll('.premium-card')),
+  starsActions: Array.from(document.querySelectorAll('[data-stars-action]')),
   statVolume: document.getElementById('stat-volume'),
   statBought: document.getElementById('stat-bought'),
   statSold: document.getElementById('stat-sold'),
@@ -1184,6 +1214,22 @@ function setAvatar(el, url, label) {
   img.src = url;
 }
 
+function updatePremiumStars(rate) {
+  if (!elements.premiumCards.length) return;
+  const numericRate = Number(rate);
+  elements.premiumCards.forEach((card) => {
+    const starsEl = card.querySelector('.premium-stars');
+    if (!starsEl) return;
+    const usd = Number(card.dataset.premiumUsd || 0);
+    if (!numericRate || !Number.isFinite(usd) || usd <= 0) {
+      starsEl.textContent = '≈ — ⭐';
+      return;
+    }
+    const stars = Math.ceil(usd / numericRate);
+    starsEl.textContent = `≈ ${formatStars(stars)} ⭐`;
+  });
+}
+
 function updateStarsUi(profile) {
   const stars = formatStars(profile?.stars ?? DEFAULT_PROFILE.stars);
   if (elements.headerStars) elements.headerStars.textContent = stars;
@@ -1197,6 +1243,7 @@ function updateStarsUi(profile) {
   const starsValue = Number(profile?.stars ?? 0);
   const usdValue = rate > 0 && Number.isFinite(starsValue) ? formatUsd(starsValue * rate) : '$0.00';
   if (elements.topupStarsUsd) elements.topupStarsUsd.textContent = usdValue;
+  updatePremiumStars(rate);
 }
 
 function setStarsClaimAmount(amount) {
@@ -2143,6 +2190,34 @@ function bindActions() {
   });
 }
 
+function bindStarsPanel() {
+  if (elements.premiumCards.length) {
+    elements.premiumCards.forEach((card) => {
+      card.addEventListener('click', () => {
+        triggerHaptic('light');
+        openAuthModal();
+      });
+    });
+  }
+  if (elements.starsActions.length) {
+    elements.starsActions.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.starsAction;
+        triggerHaptic('light');
+        if (action === 'withdraw') {
+          openWithdrawModal();
+          return;
+        }
+        if (action === 'topup') {
+          openTopupModal();
+          return;
+        }
+        openAuthModal();
+      });
+    });
+  }
+}
+
 function showAuthStep(step) {
   const steps = [
     elements.authIntro,
@@ -2922,6 +2997,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindPurchaseModal();
   bindCartModal();
   bindActions();
+  bindStarsPanel();
   bindAuthModal();
   setAuthorized(false);
   setTab('market');
