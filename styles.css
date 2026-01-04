@@ -328,6 +328,9 @@ body.is-profile-header #header-profile {
 
 .header-profile .balance-row {
   transition: transform 0.25s ease, opacity 0.25s ease;
+  height: 30px;
+  padding: 0 8px;
+  box-sizing: border-box;
 }
 
 .header-profile .balance-row.balance-stars {
