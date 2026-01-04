@@ -332,16 +332,18 @@ body.is-profile-header #header-profile {
 
 .header-profile .balance-row.balance-stars {
   order: 1;
+  transform: translateY(0);
 }
 
 .header-profile .balance-row:not(.balance-stars) {
   order: 2;
-  transform: translateY(2px);
+  transform: translateY(0);
 }
 
 .header-profile .balance-value,
 .header-profile .balance-stars .balance-value {
   font-size: 0.9rem;
+  line-height: 1;
 }
 
 .header-profile .ton-icon {
