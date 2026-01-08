@@ -818,6 +818,30 @@ body.is-profile-header #balance-plus {
   font-size: 0.9rem;
 }
 
+.auth-hint {
+  margin-top: 6px;
+  font-size: 0.86rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.auth-hint.is-hidden {
+  display: none;
+}
+
+.auth-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}
+
 .auth-status {
   display: none;
 }
