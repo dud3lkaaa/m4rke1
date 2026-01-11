@@ -412,7 +412,7 @@ const state = {
   sortMode: 'popular',
   sortMaxPrice: null,
   sortRangeMax: null,
-  language: 'ru',
+  language: 'en',
   hapticsEnabled: true,
   marketRendered: false,
   ownedRendered: false,
@@ -424,6 +424,7 @@ const state = {
   activePurchaseItem: null,
   cartItems: [],
 };
+let languageLocked = false;
 
 const SETTINGS_KEYS = {
   language: 'market.language',
@@ -650,17 +651,38 @@ function applyTranslations() {
   setPasswordHint(authPasswordHint);
 }
 
+function resolveTelegramLanguage() {
+  const user = getTelegramUser();
+  if (!user?.language_code) return null;
+  const code = String(user.language_code).toLowerCase();
+  if (code.startsWith('ru')) return 'ru';
+  return 'en';
+}
+
+function applyTelegramLanguageIfUnlocked() {
+  if (languageLocked) return;
+  const lang = resolveTelegramLanguage();
+  if (!lang || lang === state.language) return;
+  setLanguage(lang, false);
+}
+
 function loadSettings() {
   try {
     const storedLang = localStorage.getItem(SETTINGS_KEYS.language);
     if (storedLang === 'ru' || storedLang === 'en') {
       state.language = storedLang;
+      languageLocked = true;
+    } else {
+      languageLocked = false;
+      state.language = resolveTelegramLanguage() || 'en';
     }
     const storedHaptics = localStorage.getItem(SETTINGS_KEYS.haptics);
     if (storedHaptics === 'off') state.hapticsEnabled = false;
     if (storedHaptics === 'on') state.hapticsEnabled = true;
   } catch (err) {
     console.warn('Settings load failed:', err);
+    languageLocked = false;
+    state.language = 'en';
   }
 }
 
@@ -688,12 +710,15 @@ function applySettingsUi() {
   }
 }
 
-function setLanguage(lang) {
+function setLanguage(lang, persist = true) {
   state.language = lang === 'en' ? 'en' : 'ru';
-  try {
-    localStorage.setItem(SETTINGS_KEYS.language, state.language);
-  } catch (err) {
-    console.warn('Settings save failed:', err);
+  if (persist) {
+    languageLocked = true;
+    try {
+      localStorage.setItem(SETTINGS_KEYS.language, state.language);
+    } catch (err) {
+      console.warn('Settings save failed:', err);
+    }
   }
   applyTranslations();
   applySettingsUi();
@@ -945,6 +970,7 @@ function initTelegram() {
       } catch (err) {
         console.warn('Telegram WebApp init failed:', err);
       }
+      applyTelegramLanguageIfUnlocked();
       applyProfile(state.profile);
       handleStartParam();
       return;
