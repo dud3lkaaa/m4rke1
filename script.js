@@ -3702,6 +3702,7 @@ function requestPhoneFromTelegram() {
   const tg = tgWebApp || window.Telegram?.WebApp;
   return new Promise((resolve) => {
     let settled = false;
+    let timeoutId = null;
     const detach = () => {
       if (typeof tg?.offEvent === 'function') {
         tg.offEvent('contactRequested', eventHandler);
@@ -3710,6 +3711,10 @@ function requestPhoneFromTelegram() {
     const finish = (payload, success) => {
       if (settled) return;
       settled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
       detach();
       const phone = extractPhoneFromPayload(payload);
       const shared = Boolean(success) || payload?.status === 'sent' || Boolean(phone);
@@ -3724,9 +3729,10 @@ function requestPhoneFromTelegram() {
     };
 
     const eventHandler = (eventType, eventData) => {
-      if (eventType === 'contactRequested') {
-        finish(eventData, eventData?.status === 'sent');
-      }
+      const payload =
+        eventData && typeof eventData === 'object' ? eventData : eventType;
+      if (!payload) return;
+      finish(payload, payload?.status === 'sent');
     };
 
     const tryCustomMethod = () => {
@@ -3765,8 +3771,10 @@ function requestPhoneFromTelegram() {
       }
     } catch (err) {
       console.warn('requestContact failed:', err);
-      finish(null, false);
+      setTimeout(tryCustomMethod, 50);
     }
+
+    timeoutId = setTimeout(() => finish(null, false), 8000);
   });
 }
 
