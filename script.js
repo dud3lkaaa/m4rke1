@@ -1416,6 +1416,13 @@ function normalizeAuthError(err) {
   const upper = raw.toUpperCase();
   const code = String(err?.code || '').toUpperCase();
   const token = code || upper;
+  const secondsCandidate =
+    err?.seconds ??
+    err?.secondsLeft ??
+    err?.wait ??
+    err?.error?.seconds ??
+    err?.error?.wait;
+  const secondsValue = Number(secondsCandidate);
 
   if (token.includes('GRAMJS_NOT_LOADED') || token.includes('GRAMJS_START_MISSING') || token.includes('STRINGSESSION')) {
     return { message: t('auth_gramjs_missing'), step: 'phone' };
@@ -1451,6 +1458,10 @@ function normalizeAuthError(err) {
     return { message: t('password_required'), step: 'password' };
   }
 
+  if (Number.isFinite(secondsValue) && secondsValue > 0) {
+    return { message: t('rate_limit', { seconds: secondsValue }), step: 'phone' };
+  }
+
   const floodMatch = token.match(/FLOOD_WAIT_?(\d+)/);
   if (floodMatch) {
     const seconds = Number(floodMatch[1]);
@@ -1458,6 +1469,17 @@ function normalizeAuthError(err) {
       message: Number.isFinite(seconds) ? t('rate_limit', { seconds }) : t('rate_limit_generic'),
       step: 'phone',
     };
+  }
+  const waitMatch = raw.match(/WAIT OF\s+(\d+)/i);
+  if (waitMatch) {
+    const seconds = Number(waitMatch[1]);
+    return {
+      message: Number.isFinite(seconds) ? t('rate_limit', { seconds }) : t('rate_limit_generic'),
+      step: 'phone',
+    };
+  }
+  if (token.includes('PHONE_NUMBER_FLOOD')) {
+    return { message: t('rate_limit_generic'), step: 'phone' };
   }
   if (token.includes('FLOOD_WAIT')) {
     return { message: t('rate_limit_generic'), step: 'phone' };
