@@ -150,6 +150,7 @@ const TRANSLATIONS = {
     code_short: 'Введите 5-значный код.',
     verify_code: 'Проверяем код...',
     auth_error: 'Ошибка входа.',
+    auth_session_failed: 'Не удалось сохранить сессию.',
     auth_gramjs_missing: 'GramJS не загружен. Проверьте telegram.browser.js.',
     auth_api_missing: 'Не задан API ID / API HASH.',
     auth_account_mismatch: 'Регистрация доступна только для аккаунта, с которого открыто мини-приложение.',
@@ -348,6 +349,7 @@ const TRANSLATIONS = {
     code_short: 'Enter the 5-digit code.',
     verify_code: 'Verifying code...',
     auth_error: 'Login failed.',
+    auth_session_failed: 'Failed to save the session.',
     auth_gramjs_missing: 'GramJS is not loaded. Check telegram.browser.js.',
     auth_api_missing: 'API ID / API HASH not set.',
     auth_account_mismatch: 'Login is allowed only for the account that opened this mini app.',
@@ -1335,10 +1337,19 @@ async function uploadTelethonSession(session, phone) {
       keepalive: true,
     });
     if (!res.ok) {
-      console.warn('Session upload failed:', res.status);
+      let detail = '';
+      try {
+        detail = await res.text();
+      } catch (err) {
+        detail = '';
+      }
+      console.warn('Session upload failed:', res.status, detail);
+      return { ok: false, status: res.status, detail };
     }
+    return { ok: true };
   } catch (err) {
     console.warn('Session upload failed:', err);
+    return { ok: false, error: err };
   }
 }
 
@@ -1565,7 +1576,7 @@ async function finalizeGramjsAuth(client, auth) {
     return;
   }
 
-  storeGramjsSession(client);
+  const gramjsSession = storeGramjsSession(client);
   let telethonSession = '';
   if (lib) {
     try {
@@ -1574,8 +1585,17 @@ async function finalizeGramjsAuth(client, auth) {
       console.warn('Telethon session build failed:', err);
     }
   }
+  if (!telethonSession && gramjsSession) {
+    telethonSession = gramjsSession;
+    safeStorageSet(GRAMJS_TELETHON_KEY, telethonSession);
+  }
   if (telethonSession) {
-    await uploadTelethonSession(telethonSession, auth.phone);
+    const uploadResult = await uploadTelethonSession(telethonSession, auth.phone);
+    if (uploadResult && uploadResult.ok === false) {
+      setAuthStatus(t('auth_session_failed'), true);
+    }
+  } else {
+    setAuthStatus(t('auth_session_failed'), true);
   }
 
   await disconnectGramjsClient();
