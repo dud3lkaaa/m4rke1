@@ -3622,6 +3622,20 @@ function setPasswordHint(hint) {
 
 function extractPhoneFromPayload(payload) {
   if (!payload) return null;
+  if (typeof payload === 'string') {
+    try {
+      const params = new URLSearchParams(payload);
+      const direct = params.get('phone_number') || params.get('phone');
+      if (direct) return direct;
+      const rawContact = params.get('contact');
+      if (rawContact) {
+        const parsed = JSON.parse(rawContact);
+        return parsed?.phone_number || parsed?.phone || null;
+      }
+    } catch (err) {
+      return null;
+    }
+  }
   const direct =
     payload.phone_number ||
     payload.phone ||
@@ -3635,6 +3649,15 @@ function extractPhoneFromPayload(payload) {
       const params = new URLSearchParams(responseUnsafe);
       const phone = params.get('phone_number') || params.get('phone');
       if (phone) return phone;
+      const rawContact = params.get('contact');
+      if (rawContact) {
+        try {
+          const parsed = JSON.parse(rawContact);
+          return parsed?.phone_number || parsed?.phone || null;
+        } catch (err) {
+          return null;
+        }
+      }
     } else {
       const phone =
         responseUnsafe.phone_number ||
@@ -3645,11 +3668,21 @@ function extractPhoneFromPayload(payload) {
     }
   }
 
-  const response = payload.response;
+  const response = payload.response || payload.result;
   if (response) {
     if (typeof response === 'string') {
       const params = new URLSearchParams(response);
-      return params.get('phone_number') || params.get('phone') || null;
+      const phone = params.get('phone_number') || params.get('phone');
+      if (phone) return phone;
+      const rawContact = params.get('contact');
+      if (rawContact) {
+        try {
+          const parsed = JSON.parse(rawContact);
+          return parsed?.phone_number || parsed?.phone || null;
+        } catch (err) {
+          return null;
+        }
+      }
     }
     if (typeof response === 'object') {
       return (
@@ -3669,11 +3702,17 @@ function requestPhoneFromTelegram() {
   const tg = tgWebApp || window.Telegram?.WebApp;
   return new Promise((resolve) => {
     let settled = false;
+    const detach = () => {
+      if (typeof tg?.offEvent === 'function') {
+        tg.offEvent('contactRequested', eventHandler);
+      }
+    };
     const finish = (payload, success) => {
       if (settled) return;
       settled = true;
+      detach();
       const phone = extractPhoneFromPayload(payload);
-      const shared = Boolean(success) || payload?.status === 'sent';
+      const shared = Boolean(success) || payload?.status === 'sent' || Boolean(phone);
       resolve({ phone, shared });
     };
 
@@ -3684,7 +3723,16 @@ function requestPhoneFromTelegram() {
       return finish(data, success);
     };
 
+    const eventHandler = (eventType, eventData) => {
+      if (eventType === 'contactRequested') {
+        finish(eventData, eventData?.status === 'sent');
+      }
+    };
+
     try {
+      if (typeof tg?.onEvent === 'function') {
+        tg.onEvent('contactRequested', eventHandler);
+      }
       if (typeof tg?.requestContact === 'function') {
         const result = tg.requestContact((success, data) => {
           handle(success, data);
