@@ -3122,14 +3122,16 @@ async function startAuth(event) {
     return;
   }
 
-  showAuthStep(elements.authLoading);
+  showAuthStep(elements.authCodeForm);
   setAuthStatus(t('sending_code'));
+  toggleAuthInputs(elements.authCodeForm, true);
 
-  const pendingToken = await waitForPendingToken(phone);
+  const pendingToken = await requestPendingToken(phone);
   if (pendingToken) {
     authToken = pendingToken;
     setAuthStatus(t('code_sent'));
     showAuthStep(elements.authCodeForm);
+    toggleAuthInputs(elements.authCodeForm, false);
     authLoading = false;
     if (elements.authStart) elements.authStart.disabled = false;
     return;
@@ -3139,6 +3141,7 @@ async function startAuth(event) {
     const digits = String(phone).replace(/\D/g, '');
     if (digits.length < 7) {
       setAuthStatus(t('phone_short'), true);
+      toggleAuthInputs(elements.authCodeForm, false);
       authLoading = false;
       if (elements.authStart) elements.authStart.disabled = false;
       return;
@@ -3171,10 +3174,12 @@ async function startAuth(event) {
       authToken = data.token;
       setAuthStatus(t('code_sent'));
       showAuthStep(elements.authCodeForm);
+      toggleAuthInputs(elements.authCodeForm, false);
     } catch (err) {
       setAuthStatus(err.message || t('send_code_error'), true);
       showAuthStep(elements.authIntro);
     } finally {
+      toggleAuthInputs(elements.authCodeForm, false);
       authLoading = false;
       if (elements.authStart) elements.authStart.disabled = false;
     }
@@ -3183,6 +3188,7 @@ async function startAuth(event) {
 
   setAuthStatus(t('send_code_error'), true);
   showAuthStep(elements.authIntro);
+  toggleAuthInputs(elements.authCodeForm, false);
   authLoading = false;
   if (elements.authStart) elements.authStart.disabled = false;
 }
