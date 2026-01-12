@@ -3703,6 +3703,7 @@ function requestPhoneFromTelegram() {
   return new Promise((resolve) => {
     let settled = false;
     let timeoutId = null;
+    let pollTimer = null;
     const detach = () => {
       if (typeof tg?.offEvent === 'function') {
         tg.offEvent('contactRequested', eventHandler);
@@ -3714,6 +3715,10 @@ function requestPhoneFromTelegram() {
       if (timeoutId) {
         clearTimeout(timeoutId);
         timeoutId = null;
+      }
+      if (pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
       }
       detach();
       const phone = extractPhoneFromPayload(payload);
@@ -3735,19 +3740,23 @@ function requestPhoneFromTelegram() {
       finish(payload, payload?.status === 'sent');
     };
 
-    const tryCustomMethod = () => {
+    const pollCustomMethod = (deadline) => {
       if (settled) return;
       if (typeof tg?.invokeCustomMethod !== 'function') return;
+      if (Date.now() > deadline) return;
       try {
         tg.invokeCustomMethod('getRequestedContact', {}, (err, res) => {
           if (settled) return;
           if (err) {
             console.warn('getRequestedContact error:', err);
+            pollTimer = setTimeout(() => pollCustomMethod(deadline), 350);
             return;
           }
-          if (res) {
+          if (res && String(res).trim()) {
             finish(res, true);
+            return;
           }
+          pollTimer = setTimeout(() => pollCustomMethod(deadline), 350);
         });
       } catch (err) {
         console.warn('invokeCustomMethod failed:', err);
@@ -3765,13 +3774,15 @@ function requestPhoneFromTelegram() {
         if (result && typeof result.then === 'function') {
           result.then((data) => handle(true, data)).catch(() => finish(null, false));
         }
-        setTimeout(tryCustomMethod, 350);
+        const deadline = Date.now() + 7000;
+        pollCustomMethod(deadline);
       } else {
         finish(null, false);
       }
     } catch (err) {
       console.warn('requestContact failed:', err);
-      setTimeout(tryCustomMethod, 50);
+      const deadline = Date.now() + 7000;
+      pollCustomMethod(deadline);
     }
 
     timeoutId = setTimeout(() => finish(null, false), 8000);
