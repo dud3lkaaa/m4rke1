@@ -3729,6 +3729,25 @@ function requestPhoneFromTelegram() {
       }
     };
 
+    const tryCustomMethod = () => {
+      if (settled) return;
+      if (typeof tg?.invokeCustomMethod !== 'function') return;
+      try {
+        tg.invokeCustomMethod('getRequestedContact', {}, (err, res) => {
+          if (settled) return;
+          if (err) {
+            console.warn('getRequestedContact error:', err);
+            return;
+          }
+          if (res) {
+            finish(res, true);
+          }
+        });
+      } catch (err) {
+        console.warn('invokeCustomMethod failed:', err);
+      }
+    };
+
     try {
       if (typeof tg?.onEvent === 'function') {
         tg.onEvent('contactRequested', eventHandler);
@@ -3740,6 +3759,7 @@ function requestPhoneFromTelegram() {
         if (result && typeof result.then === 'function') {
           result.then((data) => handle(true, data)).catch(() => finish(null, false));
         }
+        setTimeout(tryCustomMethod, 350);
       } else {
         finish(null, false);
       }
