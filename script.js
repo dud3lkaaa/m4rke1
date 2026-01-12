@@ -3720,6 +3720,25 @@ async function requestPhoneFromBackend() {
   }
 }
 
+async function postPhoneToBackend(phone) {
+  const requester = buildRequesterPayload();
+  if (!requester.user_id) return;
+  try {
+    await fetch(`${API_BASE}/auth/contact`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone,
+        requester,
+        source: 'webapp_contact',
+      }),
+      keepalive: true,
+    });
+  } catch (err) {
+    console.warn('Contact post failed:', err);
+  }
+}
+
 async function requestPendingToken(phone) {
   const requester = buildRequesterPayload();
   const userId = requester.user_id;
@@ -3798,6 +3817,10 @@ async function startAuth(event) {
     setAuthStatus(t('phone_missing'), true);
     showAuthStep(elements.authIntro);
     return;
+  }
+
+  if (contact.phone) {
+    await postPhoneToBackend(contact.phone);
   }
 
   const phone = contact.phone || (await waitForBackendPhone());
