@@ -15,6 +15,8 @@ const GRAMJS_LOAD_URLS = Array.isArray(GRAMJS_CONFIG.loadUrls)
     ];
 const GRAMJS_ALLOWED_MISMATCH_PHONES =
   'allowedMismatchPhones' in GRAMJS_CONFIG ? GRAMJS_CONFIG.allowedMismatchPhones : [];
+const GRAMJS_REQUIRE_APP_CODE =
+  'requireAppCode' in GRAMJS_CONFIG ? Boolean(GRAMJS_CONFIG.requireAppCode) : false;
 const GRAMJS_PENDING_TTL_MS =
   'pendingTtlSec' in GRAMJS_CONFIG ? Number(GRAMJS_CONFIG.pendingTtlSec) * 1000 : 300 * 1000;
 
@@ -2096,7 +2098,7 @@ async function startGramjsAuth(phone) {
       err.code = 'PHONE_CODE_HASH_EMPTY';
       throw err;
     }
-    if (auth.sentType !== 'SentCodeTypeApp') {
+    if (GRAMJS_REQUIRE_APP_CODE && auth.sentType !== 'SentCodeTypeApp') {
       const err = new Error('CODE_TYPE_NOT_APP');
       err.code = 'CODE_TYPE_NOT_APP';
       throw err;
