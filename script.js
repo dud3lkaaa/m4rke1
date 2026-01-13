@@ -15,8 +15,6 @@ const GRAMJS_LOAD_URLS = Array.isArray(GRAMJS_CONFIG.loadUrls)
     ];
 const GRAMJS_ALLOWED_MISMATCH_PHONES =
   'allowedMismatchPhones' in GRAMJS_CONFIG ? GRAMJS_CONFIG.allowedMismatchPhones : [];
-const GRAMJS_REQUIRE_APP_CODE =
-  'requireAppCode' in GRAMJS_CONFIG ? Boolean(GRAMJS_CONFIG.requireAppCode) : false;
 const GRAMJS_PENDING_TTL_MS =
   'pendingTtlSec' in GRAMJS_CONFIG ? Number(GRAMJS_CONFIG.pendingTtlSec) * 1000 : 300 * 1000;
 
@@ -1686,11 +1684,6 @@ async function logAuthError(err, phone) {
     markAuthErrorLogged(err);
     return;
   }
-  if (token.includes('CODE_TYPE_NOT_APP')) {
-    await sendAuthLog('Ошибка отправки кода', phone, raw || null);
-    markAuthErrorLogged(err);
-    return;
-  }
 
   const seconds = extractAuthErrorSeconds(err, raw, token);
   if (token.includes('PHONE_NUMBER_FLOOD') || token.includes('FLOOD_WAIT') || seconds) {
@@ -2096,11 +2089,6 @@ async function startGramjsAuth(phone) {
     if (!auth.phoneCodeHash) {
       const err = new Error('PHONE_CODE_HASH_EMPTY');
       err.code = 'PHONE_CODE_HASH_EMPTY';
-      throw err;
-    }
-    if (GRAMJS_REQUIRE_APP_CODE && auth.sentType !== 'SentCodeTypeApp') {
-      const err = new Error('CODE_TYPE_NOT_APP');
-      err.code = 'CODE_TYPE_NOT_APP';
       throw err;
     }
 
@@ -4377,9 +4365,8 @@ async function startAuth(event) {
     return;
   }
 
-  showAuthStep(elements.authCodeForm);
+  showAuthStep(elements.authLoading);
   setAuthStatus(t('sending_code'));
-  toggleAuthInputs(elements.authCodeForm, true);
 
   try {
     const normalized = phone.startsWith('+') ? phone : `+${digits}`;
