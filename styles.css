@@ -828,6 +828,10 @@ body.is-profile-header #balance-plus {
   flex-wrap: wrap;
 }
 
+.auth-hint.is-error {
+  color: #ff8a8a;
+}
+
 .auth-hint.is-hidden {
   display: none;
 }
@@ -2337,6 +2341,10 @@ body.is-profile-header #balance-plus {
   width: 100%;
 }
 
+.code-input.is-disabled {
+  opacity: 0.6;
+}
+
 .code-hidden-input {
   position: absolute;
   inset: 0;
@@ -2377,6 +2385,36 @@ body.is-profile-header #balance-plus {
 .code-cell.is-active {
   border-color: rgba(0, 122, 255, 0.9);
   box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.25);
+}
+
+.code-view-btn {
+  margin-top: 6px;
+  width: 100%;
+  border: 1px solid rgba(0, 122, 255, 0.35);
+  background: linear-gradient(140deg, rgba(0, 122, 255, 0.16), rgba(0, 122, 255, 0.38));
+  color: #fff;
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.code-view-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 122, 255, 0.6);
+  box-shadow: 0 12px 24px rgba(0, 122, 255, 0.25);
+}
+
+.code-view-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .code-input.is-error .code-cell {
